@@ -36,20 +36,36 @@ const Payment = () => {
   };
 
   const BarcodeDisplay = ({ number }: { number: string }) => {
-    // 일반적인 바코드 패턴 생성 (검은색/흰색 바의 두께 패턴)
-    const pattern = number.split('').map(digit => 
-      parseInt(digit).toString(2).padStart(7, '0')
-    ).join('');
+    // 실제 바코드처럼 다양한 두께의 바 패턴 생성
+    const bars: { width: number; isBlack: boolean }[] = [];
+    
+    // 시작 가드 패턴
+    bars.push({ width: 2, isBlack: true }, { width: 1, isBlack: false }, { width: 2, isBlack: true });
+    
+    // 숫자 기반 패턴 생성
+    number.split('').forEach((digit) => {
+      const num = parseInt(digit);
+      // 각 숫자를 2-4개의 바로 표현 (얇은 바, 중간 바, 두꺼운 바)
+      const widths = [1, 2, 1, 3, 2, 1, 3, 2, 2, 1];
+      const pattern = [true, false, true, false];
+      
+      pattern.forEach((isBlack, i) => {
+        bars.push({ width: widths[(num + i) % widths.length], isBlack });
+      });
+    });
+    
+    // 끝 가드 패턴
+    bars.push({ width: 2, isBlack: true }, { width: 1, isBlack: false }, { width: 2, isBlack: true });
     
     return (
       <div className="space-y-2">
-        <div className="flex gap-0 h-24 items-center justify-center bg-white p-3 rounded-lg">
-          {pattern.split('').map((bit, i) => (
+        <div className="flex gap-0 h-24 items-center justify-center bg-white p-4 rounded-lg">
+          {bars.map((bar, i) => (
             <div
               key={i}
-              className={bit === '1' ? 'bg-black' : 'bg-white'}
+              className={bar.isBlack ? 'bg-black' : 'bg-white'}
               style={{
-                width: '1.5px',
+                width: `${bar.width * 2}px`,
                 height: '100%',
               }}
             />
