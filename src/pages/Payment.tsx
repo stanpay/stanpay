@@ -38,7 +38,7 @@ const Payment = () => {
   const BarcodeDisplay = ({ number }: { number: string }) => {
     // 일반적인 바코드 패턴 생성 (검은색/흰색 바의 두께 패턴)
     const pattern = number.split('').map(digit => 
-      parseInt(digit).toString(2).padStart(4, '0')
+      parseInt(digit).toString(2).padStart(7, '0')
     ).join('');
     
     return (
