@@ -3,9 +3,11 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, Gift, CreditCard } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { useState } from "react";
 
 const Payment = () => {
   const { storeId } = useParams();
+  const [purchasedGifticons, setPurchasedGifticons] = useState<number[]>([]);
 
   const storeNames: Record<string, string> = {
     baskin: "베스킨라빈스",
@@ -24,9 +26,32 @@ const Payment = () => {
     { id: 3, name: "프라푸치노 Grande", price: "6,500원", discount: "20%" },
   ];
 
+  const handlePurchase = (id: number) => {
+    setPurchasedGifticons([...purchasedGifticons, id]);
+    toast.success("기프티콘이 발급되었습니다!");
+  };
+
   const handlePayment = () => {
     toast.success("결제가 완료되었습니다!");
   };
+
+  const BarcodeDisplay = ({ number }: { number: string }) => (
+    <div className="space-y-2">
+      <div className="flex gap-[2px] h-20 items-end justify-center bg-white p-2 rounded-lg">
+        {Array.from({ length: 40 }).map((_, i) => (
+          <div
+            key={i}
+            className="bg-black flex-1"
+            style={{
+              height: `${Math.random() * 40 + 60}%`,
+              minWidth: "2px",
+            }}
+          />
+        ))}
+      </div>
+      <p className="text-center font-mono text-sm">{number}</p>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background pb-6">
@@ -53,27 +78,48 @@ const Payment = () => {
           </div>
           
           <div className="space-y-3">
-            {gifticons.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-4 bg-muted/50 rounded-xl hover:bg-muted transition-colors cursor-pointer"
-              >
-                <div>
-                  <p className="font-semibold">{item.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm text-muted-foreground line-through">
-                      {item.price}
-                    </span>
-                    <span className="text-sm font-bold text-primary">
-                      {item.discount} 할인
-                    </span>
-                  </div>
+            {gifticons.map((item) => {
+              const isPurchased = purchasedGifticons.includes(item.id);
+              
+              return (
+                <div
+                  key={item.id}
+                  className="p-4 bg-muted/50 rounded-xl transition-all"
+                >
+                  {isPurchased ? (
+                    <div className="space-y-3">
+                      <p className="font-semibold text-center">{item.name}</p>
+                      <BarcodeDisplay number={`8801234${item.id.toString().padStart(6, "0")}`} />
+                      <p className="text-xs text-center text-muted-foreground">
+                        유효기간: 2025.12.31
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">{item.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm text-muted-foreground line-through">
+                            {item.price}
+                          </span>
+                          <span className="text-sm font-bold text-primary">
+                            {item.discount} 할인
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-lg"
+                        onClick={() => handlePurchase(item.id)}
+                      >
+                        구매
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <Button size="sm" variant="outline" className="rounded-lg">
-                  구매
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
 
@@ -86,11 +132,13 @@ const Payment = () => {
             <h2 className="text-lg font-bold">멤버십</h2>
           </div>
           
-          <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl">
-            <p className="font-semibold mb-2">스타벅스 골드 회원</p>
-            <p className="text-sm text-muted-foreground">
-              적립 가능 별: ⭐⭐⭐
-            </p>
+          <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl space-y-3">
+            <p className="font-semibold text-center">스타벅스 골드 회원</p>
+            <BarcodeDisplay number="1234567890123" />
+            <div className="flex items-center justify-center gap-2 text-sm">
+              <span className="text-muted-foreground">적립 가능 별:</span>
+              <span>⭐⭐⭐</span>
+            </div>
           </div>
         </Card>
 
