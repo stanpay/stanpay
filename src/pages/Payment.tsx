@@ -49,7 +49,7 @@ const Payment = () => {
               key={i}
               className={bit === '1' ? 'bg-black' : 'bg-white'}
               style={{
-                width: '3px',
+                width: '1.5px',
                 height: '100%',
               }}
             />
