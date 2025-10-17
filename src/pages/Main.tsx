@@ -14,7 +14,7 @@ const Main = () => {
     { id: "mega", name: "메가커피", distance: "450m", distanceNum: 450, image: "☕", maxDiscount: "1,800원", discountNum: 1800 },
     { id: "compose", name: "컴포즈커피", distance: "580m", distanceNum: 580, image: "☕", maxDiscount: "2,200원", discountNum: 2200 },
     { id: "ediya", name: "이디야커피", distance: "620m", distanceNum: 620, image: "☕", maxDiscount: "1,500원", discountNum: 1500 },
-    { id: "paik", name: "백다방", distance: "740m", distanceNum: 740, image: "☕", maxDiscount: "1,200원", discountNum: 1200 },
+    { id: "paik", name: "빽다방", distance: "740m", distanceNum: 740, image: "☕", maxDiscount: "1,200원", discountNum: 1200 },
   ];
 
   const stores = [...storesData].sort((a, b) => {

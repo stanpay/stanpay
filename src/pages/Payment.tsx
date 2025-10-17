@@ -15,10 +15,20 @@ const Payment = () => {
     mega: "메가커피",
     compose: "컴포즈커피",
     ediya: "이디야커피",
-    paik: "백다방",
+    paik: "빽다방",
+  };
+
+  const membershipNames: Record<string, string> = {
+    baskin: "해피포인트",
+    starbucks: "스타벅스 멤버쉽",
+    mega: "메가커피 멤버쉽",
+    compose: "컴포즈커피 멤버쉽",
+    ediya: "이디야 멤버쉽",
+    paik: "빽다방 멤버쉽",
   };
 
   const storeName = storeNames[storeId || ""] || "매장";
+  const membershipName = membershipNames[storeId || ""] || "멤버쉽";
 
   const gifticons = [
     { id: 1, name: "아메리카노 Tall", price: "4,500원", discount: "10%" },
@@ -156,12 +166,20 @@ const Payment = () => {
           </div>
           
           <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl space-y-3">
-            <p className="font-semibold text-center">스타벅스 골드 회원</p>
+            <p className="font-semibold text-center">{membershipName}</p>
             <BarcodeDisplay number="1234567890123" />
-            <div className="flex items-center justify-center gap-2 text-sm">
-              <span className="text-muted-foreground">적립 가능 별:</span>
-              <span>⭐⭐⭐</span>
-            </div>
+            {storeId === "starbucks" && (
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <span className="text-muted-foreground">적립 가능 별:</span>
+                <span>⭐⭐⭐</span>
+              </div>
+            )}
+            {storeId === "baskin" && (
+              <div className="flex items-center justify-center gap-2 text-sm">
+                <span className="text-muted-foreground">보유 포인트:</span>
+                <span className="font-semibold">1,500P</span>
+              </div>
+            )}
           </div>
         </Card>
 
