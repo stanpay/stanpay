@@ -49,7 +49,7 @@ const Main = () => {
           <input
             type="text"
             placeholder="매장 검색..."
-            className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+            className="w-full h-12 pl-10 pr-4 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
           />
         </div>
         <div className="mb-6 flex items-center justify-between">
