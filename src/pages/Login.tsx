@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Login = () => {
   const handleKakaoLogin = () => {
@@ -30,6 +31,15 @@ const Login = () => {
             <MessageCircle className="mr-2 h-5 w-5" />
             카카오톡으로 시작하기
           </Button>
+
+          <Link to="/main" className="block mt-4">
+            <Button 
+              variant="outline"
+              className="w-full h-14 text-lg font-semibold rounded-xl"
+            >
+              데모 구경하기
+            </Button>
+          </Link>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
