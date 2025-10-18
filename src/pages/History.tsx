@@ -158,7 +158,7 @@ const History = () => {
                 {dateRange.from ? (
                   dateRange.to ? (
                     <>
-                      {format(dateRange.from, "M월 d일", { locale: ko })} -{" "}
+                      {format(dateRange.from, "M월 d일", { locale: ko })} ~{" "}
                       {format(dateRange.to, "M월 d일", { locale: ko })}
                     </>
                   ) : (
@@ -175,11 +175,14 @@ const History = () => {
                 selected={
                   dateRange.from && dateRange.to
                     ? { from: dateRange.from, to: dateRange.to }
+                    : dateRange.from
+                    ? { from: dateRange.from, to: dateRange.from }
                     : undefined
                 }
                 onSelect={(range) =>
                   setDateRange({ from: range?.from, to: range?.to })
                 }
+                disabled={(date) => date > new Date()}
                 locale={ko}
                 className={cn("p-3 pointer-events-auto")}
               />
