@@ -86,10 +86,28 @@ const History = () => {
     },
   ];
 
-  // 검색 필터링
-  const filteredPayments = payments.filter((payment) =>
-    payment.store.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // 검색 및 날짜 필터링
+  const filteredPayments = payments.filter((payment) => {
+    // 매장명 검색
+    const matchesSearch = payment.store.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // 날짜 범위 필터링
+    if (dateRange.from) {
+      const paymentDate = parse(payment.date, "yyyy.MM.dd", new Date());
+      const fromDate = new Date(dateRange.from);
+      fromDate.setHours(0, 0, 0, 0);
+      
+      if (dateRange.to) {
+        const toDate = new Date(dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        return matchesSearch && paymentDate >= fromDate && paymentDate <= toDate;
+      } else {
+        return matchesSearch && paymentDate.toDateString() === fromDate.toDateString();
+      }
+    }
+    
+    return matchesSearch;
+  });
 
   // 날짜별로 그룹화
   const groupedPayments = filteredPayments.reduce((groups, payment) => {
