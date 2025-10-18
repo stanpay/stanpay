@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronLeft, Calendar as CalendarIcon, Search } from "lucide-react";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, isToday, isYesterday, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import BottomNav from "@/components/BottomNav";
@@ -16,11 +16,15 @@ const History = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
 
+  const today = format(new Date(), "yyyy.MM.dd");
+  const yesterday = format(new Date(Date.now() - 86400000), "yyyy.MM.dd");
+  const twoDaysAgo = format(new Date(Date.now() - 172800000), "yyyy.MM.dd");
+
   const payments = [
     {
       id: 1,
       store: "스타벅스 강남점",
-      date: "2025.01.15",
+      date: today,
       time: "14:30",
       amount: 4500,
       method: "카카오페이",
@@ -29,7 +33,7 @@ const History = () => {
     {
       id: 2,
       store: "CU 역삼점",
-      date: "2025.01.15",
+      date: today,
       time: "10:20",
       amount: 5000,
       method: "네이버페이",
@@ -38,7 +42,7 @@ const History = () => {
     {
       id: 3,
       store: "맥도날드 신사점",
-      date: "2025.01.14",
+      date: yesterday,
       time: "12:15",
       amount: 6500,
       method: "토스페이",
@@ -47,7 +51,7 @@ const History = () => {
     {
       id: 4,
       store: "GS25 서초점",
-      date: "2025.01.14",
+      date: yesterday,
       time: "09:45",
       amount: 3000,
       method: "삼성페이",
@@ -56,7 +60,7 @@ const History = () => {
     {
       id: 5,
       store: "스타벅스 서초점",
-      date: "2025.01.13",
+      date: twoDaysAgo,
       time: "16:30",
       amount: 4500,
       method: "카카오페이",
@@ -65,7 +69,7 @@ const History = () => {
     {
       id: 6,
       store: "투썸플레이스 역삼점",
-      date: "2025.01.13",
+      date: twoDaysAgo,
       time: "15:00",
       amount: 5500,
       method: "토스페이",
@@ -74,7 +78,7 @@ const History = () => {
     {
       id: 7,
       store: "이디야커피 강남점",
-      date: "2025.01.12",
+      date: twoDaysAgo,
       time: "11:20",
       amount: 3500,
       method: "카카오페이",
@@ -96,6 +100,14 @@ const History = () => {
     groups[date].push(payment);
     return groups;
   }, {} as Record<string, typeof payments>);
+
+  // 날짜를 "오늘", "어제" 또는 날짜 형식으로 표시
+  const formatDateLabel = (dateStr: string) => {
+    const date = parse(dateStr, "yyyy.MM.dd", new Date());
+    if (isToday(date)) return "오늘";
+    if (isYesterday(date)) return "어제";
+    return dateStr;
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -180,7 +192,7 @@ const History = () => {
             Object.entries(groupedPayments).map(([date, datePayments]) => (
               <div key={date}>
                 <h2 className="text-sm font-semibold text-muted-foreground mb-3">
-                  {date}
+                  {formatDateLabel(date)}
                 </h2>
                 <div className="space-y-3">
                   {datePayments.map((payment) => (
