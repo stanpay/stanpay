@@ -10,6 +10,9 @@ import Sell from "./pages/Sell";
 import Marketplace from "./pages/Marketplace";
 import Payment from "./pages/Payment";
 import MyPage from "./pages/MyPage";
+import MyGifticons from "./pages/MyGifticons";
+import History from "./pages/History";
+import PaymentMethods from "./pages/PaymentMethods";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +31,9 @@ const App = () => (
           <Route path="/sell" element={<Sell />} />
           <Route path="/payment/:storeId" element={<Payment />} />
           <Route path="/mypage" element={<MyPage />} />
+          <Route path="/my-gifticons" element={<MyGifticons />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/payment-methods" element={<PaymentMethods />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
