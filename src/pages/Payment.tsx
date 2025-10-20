@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Gift, CreditCard } from "lucide-react";
+import { ArrowLeft, Gift, CreditCard, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -10,6 +10,7 @@ const Payment = () => {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("method1");
   const [purchasedGifticons, setPurchasedGifticons] = useState<number[]>([]);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   const storeNames: Record<string, string> = {
     baskin: "베스킨라빈스",
@@ -77,6 +78,22 @@ const Payment = () => {
       return;
     }
     setStep(2);
+    setCurrentCardIndex(0);
+  };
+
+  // 2단계에서 보여줄 총 카드 수 (기프티콘 + 멤버십)
+  const totalCards = purchasedGifticons.length + 1;
+
+  const handleNextCard = () => {
+    if (currentCardIndex < totalCards - 1) {
+      setCurrentCardIndex(currentCardIndex + 1);
+    }
+  };
+
+  const handlePrevCard = () => {
+    if (currentCardIndex > 0) {
+      setCurrentCardIndex(currentCardIndex - 1);
+    }
   };
 
   const BarcodeDisplay = ({ number }: { number: string }) => {
@@ -243,63 +260,123 @@ const Payment = () => {
           </>
         ) : (
           <>
-            {/* Step 2: Barcodes */}
-            <div className="space-y-4">
-              {/* Purchased Gifticons Barcodes */}
-              {purchasedGifticons.length > 0 && (
-                <Card className="p-5 rounded-2xl border-border/50">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Gift className="w-5 h-5 text-primary" />
-                    </div>
-                    <h2 className="text-lg font-bold">기프티콘</h2>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {purchasedGifticons.map((id) => {
+            {/* Step 2: Card Swipe View */}
+            <div className="space-y-6">
+              {/* Progress Mini Bar */}
+              <div className="flex justify-end gap-1.5">
+                {Array.from({ length: totalCards }).map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      index === currentCardIndex
+                        ? "w-8 bg-primary"
+                        : "w-4 bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Card Display Area */}
+              <div className="relative min-h-[400px]">
+                {/* Navigation Buttons */}
+                {currentCardIndex > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
+                    onClick={handlePrevCard}
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </Button>
+                )}
+                {currentCardIndex < totalCards - 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
+                    onClick={handleNextCard}
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </Button>
+                )}
+
+                {/* Cards */}
+                <div className="relative overflow-hidden">
+                  <div
+                    className="flex transition-transform duration-300 ease-out"
+                    style={{
+                      transform: `translateX(-${currentCardIndex * 100}%)`,
+                    }}
+                  >
+                    {/* Gifticon Cards */}
+                    {purchasedGifticons.map((id, index) => {
                       const gifticon = gifticons.find(g => g.id === id);
                       if (!gifticon) return null;
                       
                       return (
-                        <div key={id} className="space-y-3 p-4 bg-muted/50 rounded-xl">
-                          <p className="font-semibold text-center">{gifticon.name}</p>
-                          <BarcodeDisplay number={`8801234${id.toString().padStart(6, "0")}`} />
-                          <p className="text-xs text-center text-muted-foreground">
-                            유효기간: 2025.12.31
-                          </p>
+                        <div
+                          key={`gifticon-${id}`}
+                          className="w-full flex-shrink-0 px-2"
+                        >
+                          <Card className="p-6 rounded-2xl border-border/50">
+                            <div className="space-y-6">
+                              <BarcodeDisplay number={`8801234${id.toString().padStart(6, "0")}`} />
+                              <div className="space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <Gift className="w-5 h-5 text-primary" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">기프티콘</p>
+                                    <p className="font-bold text-lg">{gifticon.name}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </Card>
                         </div>
                       );
                     })}
-                  </div>
-                </Card>
-              )}
 
-              {/* Membership Barcode */}
-              <Card className="p-5 rounded-2xl border-border/50">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-secondary" />
+                    {/* Membership Card */}
+                    <div className="w-full flex-shrink-0 px-2">
+                      <Card className="p-6 rounded-2xl border-border/50">
+                        <div className="space-y-6">
+                          <BarcodeDisplay number="1234567890123" />
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
+                                <CreditCard className="w-5 h-5 text-secondary" />
+                              </div>
+                              <div>
+                                <p className="text-sm text-muted-foreground">멤버십</p>
+                                <p className="font-bold text-lg">{membershipName}</p>
+                              </div>
+                            </div>
+                            {storeId === "starbucks" && (
+                              <div className="flex items-center gap-2 text-sm pl-[52px]">
+                                <span className="text-muted-foreground">적립 가능 별:</span>
+                                <span>⭐⭐⭐</span>
+                              </div>
+                            )}
+                            {storeId === "baskin" && (
+                              <div className="flex items-center gap-2 text-sm pl-[52px]">
+                                <span className="text-muted-foreground">보유 포인트:</span>
+                                <span className="font-semibold">1,500P</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
                   </div>
-                  <h2 className="text-lg font-bold">멤버십</h2>
                 </div>
-                
-                <div className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-xl space-y-3">
-                  <p className="font-semibold text-center">{membershipName}</p>
-                  <BarcodeDisplay number="1234567890123" />
-                  {storeId === "starbucks" && (
-                    <div className="flex items-center justify-center gap-2 text-sm">
-                      <span className="text-muted-foreground">적립 가능 별:</span>
-                      <span>⭐⭐⭐</span>
-                    </div>
-                  )}
-                  {storeId === "baskin" && (
-                    <div className="flex items-center justify-center gap-2 text-sm">
-                      <span className="text-muted-foreground">보유 포인트:</span>
-                      <span className="font-semibold">1,500P</span>
-                    </div>
-                  )}
-                </div>
-              </Card>
+              </div>
+
+              {/* Card Counter */}
+              <p className="text-center text-sm text-muted-foreground">
+                {currentCardIndex + 1} / {totalCards}
+              </p>
             </div>
 
             {/* Payment Method Selection Button */}
