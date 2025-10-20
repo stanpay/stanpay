@@ -4,6 +4,7 @@ import { ChevronLeft, Filter, ArrowUpDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
+import { useState } from "react";
 
 interface Gifticon {
   id: number;
@@ -16,6 +17,8 @@ interface Gifticon {
 }
 
 const MyGifticons = () => {
+  const [filterStatus, setFilterStatus] = useState<"전체" | "사용가능" | "사용완료">("전체");
+
   const gifticons: Gifticon[] = [
     {
       id: 1,
@@ -73,6 +76,11 @@ const MyGifticons = () => {
     },
   ];
 
+  const filteredGifticons = gifticons.filter((gifticon) => {
+    if (filterStatus === "전체") return true;
+    return gifticon.status === filterStatus;
+  });
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
@@ -88,13 +96,25 @@ const MyGifticons = () => {
       {/* Filter Tabs */}
       <div className="max-w-md mx-auto px-4 py-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <Button variant="default" className="flex-1">
+          <Button 
+            variant={filterStatus === "전체" ? "default" : "outline"} 
+            className="flex-1"
+            onClick={() => setFilterStatus("전체")}
+          >
             전체
           </Button>
-          <Button variant="outline" className="flex-1">
+          <Button 
+            variant={filterStatus === "사용가능" ? "default" : "outline"} 
+            className="flex-1"
+            onClick={() => setFilterStatus("사용가능")}
+          >
             사용가능
           </Button>
-          <Button variant="outline" className="flex-1">
+          <Button 
+            variant={filterStatus === "사용완료" ? "default" : "outline"} 
+            className="flex-1"
+            onClick={() => setFilterStatus("사용완료")}
+          >
             사용완료
           </Button>
         </div>
@@ -115,7 +135,7 @@ const MyGifticons = () => {
       {/* Gifticons Grid */}
       <div className="max-w-md mx-auto px-4 py-4">
         <div className="grid grid-cols-2 gap-4">
-          {gifticons.map((gifticon) => (
+          {filteredGifticons.map((gifticon) => (
             <Card
               key={gifticon.id}
               className="overflow-hidden hover:shadow-lg transition-shadow"
