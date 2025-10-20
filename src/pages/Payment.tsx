@@ -115,8 +115,8 @@ const Payment = () => {
     bars.push({ width: 2, isBlack: true }, { width: 1, isBlack: false }, { width: 2, isBlack: true });
     
     return (
-      <div className="space-y-2">
-        <div className="flex gap-0 h-24 items-center justify-center bg-white p-4 rounded-lg">
+      <div className="space-y-1">
+        <div className="flex gap-0 h-16 items-center justify-center bg-white p-3 rounded-lg">
           {bars.map((bar, i) => (
             <div
               key={i}
@@ -128,7 +128,7 @@ const Payment = () => {
             />
           ))}
         </div>
-        <p className="text-center font-mono text-sm tracking-widest">{number}</p>
+        <p className="text-center font-mono text-xs tracking-widest">{number}</p>
       </div>
     );
   };
@@ -256,8 +256,8 @@ const Payment = () => {
           </>
         ) : (
           <>
-            {/* Step 2: Card Swipe View */}
-            <div className="space-y-6">
+            {/* Step 2: Vertical Scroll View */}
+            <div className="space-y-4">
               {/* Progress Mini Bar */}
               <div className="flex justify-end gap-1.5">
                 {Array.from({ length: totalCards }).map((_, index) => (
@@ -272,100 +272,76 @@ const Payment = () => {
                 ))}
               </div>
 
-              {/* Card Display Area */}
-              <div className="relative min-h-[400px]">
-                {/* Navigation Buttons */}
-                {currentCardIndex > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
-                    onClick={handlePrevCard}
-                  >
-                    <ChevronLeft className="w-6 h-6" />
-                  </Button>
-                )}
-                {currentCardIndex < totalCards - 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-10 rounded-full bg-background/80 backdrop-blur-sm"
-                    onClick={handleNextCard}
-                  >
-                    <ChevronRight className="w-6 h-6" />
-                  </Button>
-                )}
-
-                {/* Cards */}
-                <div className="relative overflow-hidden">
-                  <div
-                    className="flex transition-transform duration-300 ease-out"
-                    style={{
-                      transform: `translateX(-${currentCardIndex * 100}%)`,
-                    }}
-                  >
-                    {/* Gifticon Cards */}
-                    {purchasedGifticons.map((id, index) => {
-                      const gifticon = gifticons.find(g => g.id === id);
-                      if (!gifticon) return null;
-                      
-                      return (
-                        <div
-                          key={`gifticon-${id}`}
-                          className="w-full flex-shrink-0 px-2"
-                        >
-                          <Card className="p-6 rounded-2xl border-border/50">
-                            <div className="space-y-6">
-                              <BarcodeDisplay number={`8801234${id.toString().padStart(6, "0")}`} />
-                              <div className="space-y-2">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                    <Gift className="w-5 h-5 text-primary" />
-                                  </div>
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">기프티콘</p>
-                                    <p className="font-bold text-lg">{gifticon.name}</p>
-                                  </div>
-                                </div>
-                              </div>
+              {/* Scrollable Card Container with Snap */}
+              <div 
+                className="overflow-y-auto snap-y snap-mandatory h-[500px] space-y-4 pr-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent"
+                onScroll={(e) => {
+                  const scrollTop = e.currentTarget.scrollTop;
+                  const itemHeight = e.currentTarget.scrollHeight / totalCards;
+                  const newIndex = Math.round(scrollTop / itemHeight);
+                  if (newIndex !== currentCardIndex && newIndex >= 0 && newIndex < totalCards) {
+                    setCurrentCardIndex(newIndex);
+                  }
+                }}
+              >
+                {/* Gifticon Cards */}
+                {purchasedGifticons.map((id) => {
+                  const gifticon = gifticons.find(g => g.id === id);
+                  if (!gifticon) return null;
+                  
+                  return (
+                    <div
+                      key={`gifticon-${id}`}
+                      className="snap-start"
+                    >
+                      <Card className="p-4 rounded-2xl border-border/50">
+                        <div className="space-y-3">
+                          <BarcodeDisplay number={`8801234${id.toString().padStart(6, "0")}`} />
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <Gift className="w-4 h-4 text-primary" />
                             </div>
-                          </Card>
-                        </div>
-                      );
-                    })}
-
-                    {/* Membership Card */}
-                    <div className="w-full flex-shrink-0 px-2">
-                      <Card className="p-6 rounded-2xl border-border/50">
-                        <div className="space-y-6">
-                          <BarcodeDisplay number="1234567890123" />
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center">
-                                <CreditCard className="w-5 h-5 text-secondary" />
-                              </div>
-                              <div>
-                                <p className="text-sm text-muted-foreground">멤버십</p>
-                                <p className="font-bold text-lg">{membershipName}</p>
-                              </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">기프티콘</p>
+                              <p className="font-bold text-sm">{gifticon.name}</p>
                             </div>
-                            {storeId === "starbucks" && (
-                              <div className="flex items-center gap-2 text-sm pl-[52px]">
-                                <span className="text-muted-foreground">적립 가능 별:</span>
-                                <span>⭐⭐⭐</span>
-                              </div>
-                            )}
-                            {storeId === "baskin" && (
-                              <div className="flex items-center gap-2 text-sm pl-[52px]">
-                                <span className="text-muted-foreground">보유 포인트:</span>
-                                <span className="font-semibold">1,500P</span>
-                              </div>
-                            )}
                           </div>
                         </div>
                       </Card>
                     </div>
-                  </div>
+                  );
+                })}
+
+                {/* Membership Card */}
+                <div className="snap-start">
+                  <Card className="p-4 rounded-2xl border-border/50">
+                    <div className="space-y-3">
+                      <BarcodeDisplay number="1234567890123" />
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+                            <CreditCard className="w-4 h-4 text-secondary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">멤버십</p>
+                            <p className="font-bold text-sm">{membershipName}</p>
+                          </div>
+                        </div>
+                        {storeId === "starbucks" && (
+                          <div className="flex items-center gap-2 text-xs pl-[44px]">
+                            <span className="text-muted-foreground">적립 가능 별:</span>
+                            <span>⭐⭐⭐</span>
+                          </div>
+                        )}
+                        {storeId === "baskin" && (
+                          <div className="flex items-center gap-2 text-xs pl-[44px]">
+                            <span className="text-muted-foreground">보유 포인트:</span>
+                            <span className="font-semibold">1,500P</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
                 </div>
               </div>
 
