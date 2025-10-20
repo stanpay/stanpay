@@ -73,10 +73,6 @@ const Payment = () => {
   };
 
   const handleConfirmStep1 = () => {
-    if (purchasedGifticons.length === 0) {
-      toast.error("기프티콘을 선택해주세요!");
-      return;
-    }
     setStep(2);
     setCurrentCardIndex(0);
   };
