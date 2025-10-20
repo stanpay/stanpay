@@ -256,7 +256,7 @@ const Payment = () => {
           <>
             {/* Step 2: Vertical Scroll View - Fixed Layout */}
             {/* Left Side - Back Button and Mini Bar */}
-            <div className="absolute left-2 top-4 flex flex-col gap-3 z-50">
+            <div className="absolute left-2 top-6 flex flex-col gap-3 z-50">
               {/* Back Button */}
               <Button 
                 variant="ghost" 
@@ -282,12 +282,12 @@ const Payment = () => {
               </div>
             </div>
 
-            <div className="flex h-full py-6 overflow-hidden">
+            <div className="flex h-full pt-6 pb-6 overflow-hidden">
               {/* Main Content Area */}
-              <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col overflow-hidden min-h-0">
                 {/* Scrollable Card Container with Snap - No scrollbar */}
                 <div 
-                  className="flex-1 overflow-y-scroll snap-y snap-mandatory scrollbar-hide"
+                  className="flex-1 overflow-y-scroll snap-y snap-mandatory scrollbar-hide min-h-0"
                   style={{
                     scrollSnapType: 'y mandatory',
                     scrollbarWidth: 'none',
