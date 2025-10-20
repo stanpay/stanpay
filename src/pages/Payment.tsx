@@ -387,16 +387,16 @@ const Payment = () => {
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Fixed Bottom Button */}
-              <div className="flex-shrink-0 pt-4 pb-2">
-                <Button
-                  onClick={handlePayment}
-                  className="w-full h-14 text-lg font-semibold rounded-xl"
-                >
-                  결제수단 선택
-                </Button>
-              </div>
+            {/* Fixed Bottom Button - Outside of card container */}
+            <div className="absolute bottom-4 left-14 right-4">
+              <Button
+                onClick={handlePayment}
+                className="w-full h-14 text-lg font-semibold rounded-xl"
+              >
+                결제수단 선택
+              </Button>
             </div>
           </>
         )}
