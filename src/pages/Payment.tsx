@@ -54,14 +54,17 @@ const Payment = () => {
   ];
 
   const gifticons = [
-    { id: 1, name: "아메리카노 Tall", price: "4,500원", discount: "10%" },
-    { id: 2, name: "카페라떼 Grande", price: "5,500원", discount: "15%" },
-    { id: 3, name: "프라푸치노 Grande", price: "6,500원", discount: "20%" },
+    { id: 1, name: "아메리카노 Tall", price: "4,500원", originalPrice: 4500, discount: "10%", discountAmount: 450 },
+    { id: 2, name: "카페라떼 Grande", price: "5,500원", originalPrice: 5500, discount: "15%", discountAmount: 825 },
+    { id: 3, name: "프라푸치노 Grande", price: "6,500원", originalPrice: 6500, discount: "20%", discountAmount: 1300 },
   ];
 
   const handlePurchase = (id: number) => {
-    setPurchasedGifticons([...purchasedGifticons, id]);
-    toast.success("기프티콘이 발급되었습니다!");
+    if (purchasedGifticons.includes(id)) {
+      setPurchasedGifticons(purchasedGifticons.filter(gifticonId => gifticonId !== id));
+    } else {
+      setPurchasedGifticons([...purchasedGifticons, id]);
+    }
   };
 
   const handlePayment = () => {
@@ -210,7 +213,7 @@ const Payment = () => {
                                 {item.price}
                               </span>
                               <span className="text-sm font-bold text-primary">
-                                {item.discount} 할인
+                                {item.discount} ({item.discountAmount.toLocaleString()}원) 할인
                               </span>
                             </div>
                           </div>
