@@ -135,19 +135,15 @@ const Payment = () => {
 
   return (
     <div className="min-h-screen bg-background pb-6">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-card border-b border-border">
-        <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-4">
+      <main className={`max-w-md mx-auto px-4 ${step === 2 ? 'h-screen flex flex-col' : 'py-6 space-y-4'}`}>
+        {/* Back Button */}
+        <div className="absolute top-4 left-4 z-50">
           <Link to="/main">
             <Button variant="ghost" size="icon" className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <h1 className="text-xl font-bold flex-1">{storeName}</h1>
         </div>
-      </header>
-
-      <main className={`max-w-md mx-auto px-4 ${step === 2 ? 'h-[calc(100vh-73px)] flex flex-col' : 'py-6 space-y-4'}`}>
         {step === 1 ? (
           <>
             {/* Payment Method Selection */}
