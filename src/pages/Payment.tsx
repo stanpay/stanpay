@@ -256,128 +256,118 @@ const Payment = () => {
           </>
         ) : (
           <>
-            {/* Step 2: Vertical Scroll View */}
-            {/* Progress Mini Bar */}
-            <div className="flex justify-end gap-1.5 mb-4">
-              {Array.from({ length: totalCards }).map((_, index) => (
-                <div
-                  key={index}
-                  className={`h-1 rounded-full transition-all duration-300 ${
-                    index === currentCardIndex
-                      ? "w-8 bg-primary"
-                      : "w-4 bg-muted"
-                  }`}
-                />
-              ))}
-            </div>
-
-            {/* Scrollable Card Container with Snap */}
-            <div 
-              className="flex-1 overflow-y-auto snap-y snap-mandatory space-y-4 pb-4"
-              style={{
-                scrollSnapType: 'y mandatory',
-                scrollPaddingTop: '0px',
-              }}
-              onScroll={(e) => {
-                const container = e.currentTarget;
-                const cards = container.children;
-                let minDistance = Infinity;
-                let closestIndex = 0;
-                
-                for (let i = 0; i < cards.length; i++) {
-                  const card = cards[i] as HTMLElement;
-                  const rect = card.getBoundingClientRect();
-                  const containerRect = container.getBoundingClientRect();
-                  const distance = Math.abs(rect.top - containerRect.top);
-                  
-                  if (distance < minDistance) {
-                    minDistance = distance;
-                    closestIndex = i;
-                  }
-                }
-                
-                if (closestIndex !== currentCardIndex) {
-                  setCurrentCardIndex(closestIndex);
-                }
-              }}
-            >
-              {/* Gifticon Cards */}
-              {purchasedGifticons.map((id) => {
-                const gifticon = gifticons.find(g => g.id === id);
-                if (!gifticon) return null;
-                
-                return (
+            {/* Step 2: Vertical Scroll View - Fixed Layout */}
+            <div className="flex gap-4 flex-1 overflow-hidden">
+              {/* Progress Mini Bar - Vertical */}
+              <div className="flex flex-col gap-1.5 justify-center">
+                {Array.from({ length: totalCards }).map((_, index) => (
                   <div
-                    key={`gifticon-${id}`}
-                    className="snap-start snap-always"
-                    style={{ scrollSnapAlign: 'start' }}
-                  >
-                    <Card className="p-4 rounded-2xl border-border/50">
+                    key={index}
+                    className={`w-1 rounded-full transition-all duration-300 ${
+                      index === currentCardIndex
+                        ? "h-8 bg-primary"
+                        : "h-4 bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Scrollable Card Container with Snap */}
+              <div 
+                className="flex-1 overflow-y-auto snap-y snap-mandatory"
+                style={{
+                  scrollSnapType: 'y mandatory',
+                }}
+                onScroll={(e) => {
+                  const container = e.currentTarget;
+                  const scrollTop = container.scrollTop;
+                  const cardHeight = container.scrollHeight / totalCards;
+                  const newIndex = Math.round(scrollTop / cardHeight);
+                  
+                  if (newIndex !== currentCardIndex && newIndex >= 0 && newIndex < totalCards) {
+                    setCurrentCardIndex(newIndex);
+                  }
+                }}
+              >
+                <div className="space-y-4">
+                  {/* Gifticon Cards */}
+                  {purchasedGifticons.map((id) => {
+                    const gifticon = gifticons.find(g => g.id === id);
+                    if (!gifticon) return null;
+                    
+                    return (
+                      <div
+                        key={`gifticon-${id}`}
+                        className="snap-center h-[calc(100vh-280px)] flex items-center"
+                      >
+                        <Card className="w-full p-4 rounded-2xl border-border/50">
+                          <div className="space-y-3">
+                            <BarcodeDisplay number={`8801234${id.toString().padStart(6, "0")}`} />
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <Gift className="w-4 h-4 text-primary" />
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">기프티콘</p>
+                                <p className="font-bold text-sm">{gifticon.name}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      </div>
+                    );
+                  })}
+
+                  {/* Membership Card */}
+                  <div className="snap-center h-[calc(100vh-280px)] flex items-center">
+                    <Card className="w-full p-4 rounded-2xl border-border/50">
                       <div className="space-y-3">
-                        <BarcodeDisplay number={`8801234${id.toString().padStart(6, "0")}`} />
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <Gift className="w-4 h-4 text-primary" />
+                        <BarcodeDisplay number="1234567890123" />
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+                              <CreditCard className="w-4 h-4 text-secondary" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">멤버십</p>
+                              <p className="font-bold text-sm">{membershipName}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">기프티콘</p>
-                            <p className="font-bold text-sm">{gifticon.name}</p>
-                          </div>
+                          {storeId === "starbucks" && (
+                            <div className="flex items-center gap-2 text-xs pl-[44px]">
+                              <span className="text-muted-foreground">적립 가능 별:</span>
+                              <span>⭐⭐⭐</span>
+                            </div>
+                          )}
+                          {storeId === "baskin" && (
+                            <div className="flex items-center gap-2 text-xs pl-[44px]">
+                              <span className="text-muted-foreground">보유 포인트:</span>
+                              <span className="font-semibold">1,500P</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </Card>
                   </div>
-                );
-              })}
-
-              {/* Membership Card */}
-              <div 
-                className="snap-start snap-always"
-                style={{ scrollSnapAlign: 'start' }}
-              >
-                <Card className="p-4 rounded-2xl border-border/50">
-                  <div className="space-y-3">
-                    <BarcodeDisplay number="1234567890123" />
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
-                          <CreditCard className="w-4 h-4 text-secondary" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">멤버십</p>
-                          <p className="font-bold text-sm">{membershipName}</p>
-                        </div>
-                      </div>
-                      {storeId === "starbucks" && (
-                        <div className="flex items-center gap-2 text-xs pl-[44px]">
-                          <span className="text-muted-foreground">적립 가능 별:</span>
-                          <span>⭐⭐⭐</span>
-                        </div>
-                      )}
-                      {storeId === "baskin" && (
-                        <div className="flex items-center gap-2 text-xs pl-[44px]">
-                          <span className="text-muted-foreground">보유 포인트:</span>
-                          <span className="font-semibold">1,500P</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
+                </div>
               </div>
             </div>
 
-            {/* Card Counter */}
-            <p className="text-center text-sm text-muted-foreground mb-4">
-              {currentCardIndex + 1} / {totalCards}
-            </p>
+            {/* Fixed Bottom Section */}
+            <div className="space-y-4 pt-4">
+              {/* Card Counter */}
+              <p className="text-center text-sm text-muted-foreground">
+                {currentCardIndex + 1} / {totalCards}
+              </p>
 
-            {/* Payment Method Selection Button */}
-            <Button
-              onClick={handlePayment}
-              className="w-full h-14 text-lg font-semibold rounded-xl"
-            >
-              결제수단 선택
-            </Button>
+              {/* Payment Method Selection Button */}
+              <Button
+                onClick={handlePayment}
+                className="w-full h-14 text-lg font-semibold rounded-xl"
+              >
+                결제수단 선택
+              </Button>
+            </div>
           </>
         )}
       </main>
