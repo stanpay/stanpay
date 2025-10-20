@@ -13,11 +13,12 @@ interface Gifticon {
   originalPrice: number;
   image: string;
   expiryDate: string;
-  status: "사용가능" | "사용완료";
+  status: "사용가능" | "사용완료" | "판매완료";
 }
 
 const MyGifticons = () => {
-  const [filterStatus, setFilterStatus] = useState<"전체" | "사용가능" | "사용완료">("전체");
+  const [filterStatus, setFilterStatus] = useState<"전체" | "사용가능" | "사용완료" | "판매완료">("전체");
+  const [subFilter, setSubFilter] = useState<"전체" | "보유중" | "판매중">("전체");
   const [sellingStatus, setSellingStatus] = useState<Record<number, boolean>>({});
 
   const gifticons: Gifticon[] = [
@@ -78,8 +79,22 @@ const MyGifticons = () => {
   ];
 
   const filteredGifticons = gifticons.filter((gifticon) => {
-    if (filterStatus === "전체") return true;
-    return gifticon.status === filterStatus;
+    // 먼저 상위 필터 적용
+    if (filterStatus !== "전체" && gifticon.status !== filterStatus) {
+      return false;
+    }
+    
+    // 사용가능 필터 선택 시 추가 필터 적용
+    if (filterStatus === "사용가능") {
+      if (subFilter === "보유중" && sellingStatus[gifticon.id]) {
+        return false;
+      }
+      if (subFilter === "판매중" && !sellingStatus[gifticon.id]) {
+        return false;
+      }
+    }
+    
+    return true;
   });
 
   const toggleSelling = (id: number) => {
@@ -103,30 +118,66 @@ const MyGifticons = () => {
 
       {/* Filter Tabs */}
       <div className="max-w-md mx-auto px-4 py-4 border-b border-border">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 overflow-x-auto">
           <Button 
             variant={filterStatus === "전체" ? "default" : "outline"} 
-            className="flex-1"
+            className="flex-1 min-w-[70px]"
             onClick={() => setFilterStatus("전체")}
           >
             전체
           </Button>
           <Button 
             variant={filterStatus === "사용가능" ? "default" : "outline"} 
-            className="flex-1"
+            className="flex-1 min-w-[70px]"
             onClick={() => setFilterStatus("사용가능")}
           >
             사용가능
           </Button>
           <Button 
             variant={filterStatus === "사용완료" ? "default" : "outline"} 
-            className="flex-1"
+            className="flex-1 min-w-[70px]"
             onClick={() => setFilterStatus("사용완료")}
           >
             사용완료
           </Button>
+          <Button 
+            variant={filterStatus === "판매완료" ? "default" : "outline"} 
+            className="flex-1 min-w-[70px]"
+            onClick={() => setFilterStatus("판매완료")}
+          >
+            판매완료
+          </Button>
         </div>
       </div>
+
+      {/* Sub Filter Chips - Only show when "사용가능" is selected */}
+      {filterStatus === "사용가능" && (
+        <div className="max-w-md mx-auto px-4 py-3 border-b border-border">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant={subFilter === "전체" ? "default" : "outline"}
+              className="cursor-pointer px-3 py-1"
+              onClick={() => setSubFilter("전체")}
+            >
+              전체
+            </Badge>
+            <Badge
+              variant={subFilter === "보유중" ? "default" : "outline"}
+              className="cursor-pointer px-3 py-1"
+              onClick={() => setSubFilter("보유중")}
+            >
+              보유중
+            </Badge>
+            <Badge
+              variant={subFilter === "판매중" ? "default" : "outline"}
+              className="cursor-pointer px-3 py-1"
+              onClick={() => setSubFilter("판매중")}
+            >
+              판매중
+            </Badge>
+          </div>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between border-b border-border">
