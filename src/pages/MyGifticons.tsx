@@ -200,9 +200,9 @@ const MyGifticons = () => {
       <Link to="/sell">
         <Button
           size="icon"
-          className="fixed bottom-44 right-6 h-16 w-16 rounded-full shadow-lg z-40 bg-background border-2 border-primary hover:bg-primary/10"
+          className="fixed bottom-40 right-6 h-14 w-14 rounded-full shadow-lg z-40 bg-background border-2 border-primary hover:bg-primary/10"
         >
-          <Plus className="h-7 w-7 text-primary" />
+          <Plus className="h-6 w-6 text-primary" />
         </Button>
       </Link>
 
