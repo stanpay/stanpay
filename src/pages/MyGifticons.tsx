@@ -82,7 +82,7 @@ const MyGifticons = () => {
   });
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 overflow-x-hidden">
       {/* Header */}
       <header className="sticky top-0 z-40 bg-card border-b border-border">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center gap-3">
@@ -138,20 +138,20 @@ const MyGifticons = () => {
           {filteredGifticons.map((gifticon) => (
             <Card
               key={gifticon.id}
-              className="overflow-hidden hover:shadow-lg transition-shadow"
+              className="overflow-hidden hover:shadow-lg transition-shadow w-full"
             >
-              <div className="aspect-square bg-card flex items-center justify-center p-4 border-b border-border relative">
+              <div className="aspect-square bg-card flex items-center justify-center p-4 border-b border-border relative overflow-hidden">
                 <div className="text-7xl">{gifticon.image}</div>
                 {gifticon.status === "사용완료" && (
                   <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                    <Badge variant="secondary" className="text-sm">
+                    <Badge variant="secondary" className="text-sm whitespace-nowrap">
                       사용완료
                     </Badge>
                   </div>
                 )}
               </div>
               <div className="p-3 space-y-2">
-                <p className="text-sm text-muted-foreground">{gifticon.brand}</p>
+                <p className="text-sm text-muted-foreground truncate">{gifticon.brand}</p>
                 <p className="text-sm font-medium line-clamp-2 min-h-[2.5rem]">
                   {gifticon.name}
                 </p>
@@ -160,7 +160,7 @@ const MyGifticons = () => {
                     variant={
                       gifticon.status === "사용가능" ? "default" : "secondary"
                     }
-                    className="text-xs"
+                    className="text-xs whitespace-nowrap"
                   >
                     {gifticon.status}
                   </Badge>
