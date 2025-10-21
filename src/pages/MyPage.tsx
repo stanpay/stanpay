@@ -9,6 +9,7 @@ const MyPage = () => {
   const menuItems = [
     { icon: Gift, label: "내 기프티콘", path: "/my-gifticons" },
     { icon: History, label: "결제 내역", path: "/history" },
+    { icon: Settings, label: "포인트/멤버십 관리", path: "/points-membership" },
     { icon: Settings, label: "결제수단 설정", path: "/payment-methods" },
     { icon: Settings, label: "설정", path: "/settings" },
   ];
