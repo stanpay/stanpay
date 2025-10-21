@@ -21,9 +21,9 @@ const StoreCard = ({ id, name, distance, image, maxDiscount }: StoreCardProps) =
               최대 {maxDiscount}
             </div>
           </div>
-          <div className="p-4 bg-card">
-            <h3 className="font-bold text-lg mb-1">{name}</h3>
-            <div className="flex items-center text-sm text-muted-foreground">
+          <div className="p-3 bg-card">
+            <h3 className="font-bold text-base mb-0.5">{name}</h3>
+            <div className="flex items-center text-xs text-muted-foreground">
               <MapPin className="w-3 h-3 mr-1" />
               <span>{distance}</span>
             </div>
