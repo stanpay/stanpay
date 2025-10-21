@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronRight, Gift, History, Settings, LogOut } from "lucide-react";
+import { ChevronRight, Gift, History, Settings, LogOut, Plus } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { Link } from "react-router-dom";
 
@@ -37,8 +37,20 @@ const MyPage = () => {
             </div>
           </div>
 
+          {/* Points Balance */}
+          <div className="flex items-center justify-between py-4 border-y border-border my-4">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">포인트 잔액</p>
+              <p className="text-2xl font-bold text-primary">15,000 P</p>
+            </div>
+            <Button className="rounded-xl gap-2">
+              <Plus className="w-4 h-4" />
+              충전
+            </Button>
+          </div>
+
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border">
+          <div className="grid grid-cols-3 gap-4 pt-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-primary mb-1">12</p>
               <p className="text-xs text-muted-foreground">보유 기프티콘</p>
