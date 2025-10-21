@@ -51,18 +51,18 @@ const MyPage = () => {
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-4 pt-4">
-            <div className="text-center">
+            <Link to="/my-gifticons" className="text-center cursor-pointer hover:opacity-80 transition-opacity">
               <p className="text-2xl font-bold text-primary mb-1">12</p>
               <p className="text-xs text-muted-foreground">보유 기프티콘</p>
-            </div>
-            <div className="text-center border-l border-r border-border">
+            </Link>
+            <Link to="/history" className="text-center border-l border-r border-border cursor-pointer hover:opacity-80 transition-opacity">
               <p className="text-2xl font-bold text-primary mb-1">45</p>
               <p className="text-xs text-muted-foreground">결제 횟수</p>
-            </div>
-            <div className="text-center">
+            </Link>
+            <Link to="/my-gifticons?filter=사용가능&subFilter=판매중" className="text-center cursor-pointer hover:opacity-80 transition-opacity">
               <p className="text-2xl font-bold text-primary mb-1">8</p>
               <p className="text-xs text-muted-foreground">판매 중</p>
-            </div>
+            </Link>
           </div>
         </Card>
 

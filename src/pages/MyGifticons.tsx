@@ -1,10 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Filter, ArrowUpDown, Plus } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import BottomNav from "@/components/BottomNav";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Gifticon {
   id: number;
@@ -17,11 +17,24 @@ interface Gifticon {
 }
 
 const MyGifticons = () => {
+  const [searchParams] = useSearchParams();
   const [filterStatus, setFilterStatus] = useState<"전체" | "사용가능" | "사용완료" | "판매완료">("전체");
   const [subFilter, setSubFilter] = useState<"전체" | "보유중" | "판매중">("전체");
   const [sellingStatus, setSellingStatus] = useState<Record<number, boolean>>({});
   const [restoredStatus, setRestoredStatus] = useState<Record<number, boolean>>({});
   const [gifticonStatus, setGifticonStatus] = useState<Record<number, "사용가능" | "사용완료" | "판매완료">>({});
+
+  useEffect(() => {
+    const filter = searchParams.get("filter") as "전체" | "사용가능" | "사용완료" | "판매완료" | null;
+    const subFilterParam = searchParams.get("subFilter") as "전체" | "보유중" | "판매중" | null;
+    
+    if (filter) {
+      setFilterStatus(filter);
+    }
+    if (subFilterParam) {
+      setSubFilter(subFilterParam);
+    }
+  }, [searchParams]);
 
   const gifticons: Gifticon[] = [
     {
