@@ -92,15 +92,18 @@ const Main = () => {
 
   useEffect(() => {
     const waitForKakao = async () => {
+      console.log("🔍 [Kakao SDK] 로드 대기 시작");
       // Kakao SDK가 로드될 때까지 대기
       let attempts = 0;
       while (!(window as any).kakao?.maps && attempts < 50) {
+        console.log(`⏳ [Kakao SDK] 대기 중... (시도 ${attempts + 1}/50)`);
         await new Promise(resolve => setTimeout(resolve, 100));
         attempts++;
       }
       
       if (!(window as any).kakao?.maps) {
-        console.error("Kakao SDK 로드 실패");
+        console.error("❌ [Kakao SDK] 로드 실패 - SDK를 찾을 수 없습니다");
+        console.log("window.kakao:", (window as any).kakao);
         toast({
           title: "지도 로딩 실패",
           description: "페이지를 새로고침해주세요.",
@@ -108,13 +111,16 @@ const Main = () => {
         });
         return false;
       }
+      console.log("✅ [Kakao SDK] 로드 완료", (window as any).kakao.maps);
       return true;
     };
 
     const initLocation = async () => {
+      console.log("📍 [위치 초기화] 시작");
       // Kakao SDK 로드 대기
       const kakaoReady = await waitForKakao();
       if (!kakaoReady) {
+        console.error("❌ [위치 초기화] Kakao SDK 준비 실패");
         setIsLoadingLocation(false);
         return;
       }
@@ -124,14 +130,16 @@ const Main = () => {
 
       // 위치 권한 확인 및 현재 위치 가져오기
       if (navigator.geolocation) {
-        console.log("위치 정보 요청 시작...");
+        console.log("🌍 [위치 정보] 브라우저 위치 정보 요청 시작");
         navigator.geolocation.getCurrentPosition(
           async (position) => {
             const { latitude, longitude } = position.coords;
-            console.log("좌표:", latitude, longitude);
+            console.log("✅ [위치 정보] 좌표 획득 성공:", { latitude, longitude });
             
             // 좌표를 주소로 변환
+            console.log("🏠 [주소 변환] 시작");
             const address = await getAddressFromCoords(latitude, longitude);
+            console.log("✅ [주소 변환] 완료:", address);
             
             // 저장 및 표시
             localStorage.setItem("selectedLocation", address);
@@ -141,10 +149,13 @@ const Main = () => {
             setIsLoadingLocation(false);
             
             // 매장 정보 가져오기
+            console.log("🏪 [매장 검색] fetchNearbyStores 호출 시작");
             await fetchNearbyStores(latitude, longitude);
           },
           (error) => {
-            console.error("위치 가져오기 실패:", error);
+            console.error("❌ [위치 정보] 획득 실패:", error);
+            console.log("에러 코드:", error.code);
+            console.log("에러 메시지:", error.message);
             
             // 기본값 설정
             const defaultLocation = "강남구 역삼동";
@@ -154,6 +165,7 @@ const Main = () => {
             
             // 에러 메시지 표시 (권한 거부시)
             if (error.code === error.PERMISSION_DENIED) {
+              console.warn("⚠️ [위치 권한] 사용자가 위치 권한을 거부했습니다");
               toast({
                 title: "위치 권한 필요",
                 description: "위치 권한을 허용하면 자동으로 현재 위치가 설정됩니다.",
@@ -256,14 +268,17 @@ const Main = () => {
   const fetchNearbyStores = async (latitude: number, longitude: number) => {
     try {
       setIsLoadingStores(true);
-      console.log("매장 검색 시작:", latitude, longitude);
+      console.log("🏪 [매장 검색] 시작:", { latitude, longitude });
 
       const kakao = (window as any).kakao;
       if (!kakao?.maps) {
+        console.error("❌ [매장 검색] Kakao SDK를 찾을 수 없습니다");
         throw new Error("Kakao SDK가 로드되지 않았습니다");
       }
+      console.log("✅ [매장 검색] Kakao SDK 확인 완료");
 
       const radius = 10000; // 10km (미터 단위)
+      console.log("📏 [매장 검색] 검색 반경:", radius, "미터");
 
       // 검색할 브랜드 목록
       const brands = [
@@ -271,24 +286,31 @@ const Main = () => {
         { keyword: "베스킨라빈스", image: "baskin", discountNum: 3000 },
         { keyword: "메가커피", image: "mega", discountNum: 1800 },
       ];
+      console.log("🔍 [매장 검색] 검색할 브랜드:", brands.map(b => b.keyword));
 
       // Places 서비스 객체 생성
+      console.log("🗺️ [매장 검색] Places 서비스 객체 생성");
       const ps = new kakao.maps.services.Places();
+      console.log("✅ [매장 검색] Places 서비스 준비 완료");
 
       // 모든 브랜드를 병렬로 검색
+      console.log("🔄 [매장 검색] 병렬 검색 시작");
       const searchPromises = brands.map((brand) => {
         return new Promise<any[]>((resolve, reject) => {
+          console.log(`🔍 [${brand.keyword}] 검색 시작`);
           const options = {
             location: new kakao.maps.LatLng(latitude, longitude),
             radius: radius,
             size: 15,
           };
+          console.log(`⚙️ [${brand.keyword}] 검색 옵션:`, options);
 
           ps.keywordSearch(
             brand.keyword,
             (data: any[], status: any) => {
+              console.log(`📊 [${brand.keyword}] 응답 상태:`, status);
               if (status === kakao.maps.services.Status.OK) {
-                console.log(`${brand.keyword} 검색 결과:`, data);
+                console.log(`✅ [${brand.keyword}] 검색 성공 - 결과 ${data.length}개:`, data);
                 
                 const stores = data.map((place: any) => {
                   // 거리 계산
@@ -313,12 +335,13 @@ const Main = () => {
                   };
                 });
                 
+                console.log(`📍 [${brand.keyword}] 처리된 매장 데이터:`, stores);
                 resolve(stores);
               } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
-                console.log(`${brand.keyword} 검색 결과 없음`);
+                console.log(`⚠️ [${brand.keyword}] 검색 결과 없음`);
                 resolve([]);
               } else {
-                console.error(`${brand.keyword} 검색 실패:`, status);
+                console.error(`❌ [${brand.keyword}] 검색 실패 - 상태:`, status);
                 resolve([]);
               }
             },
@@ -326,15 +349,22 @@ const Main = () => {
           );
         });
       });
+      console.log("⏳ [매장 검색] 모든 브랜드 검색 대기 중...");
 
       const results = await Promise.all(searchPromises);
+      console.log("✅ [매장 검색] 모든 브랜드 검색 완료");
+      console.log("📊 [매장 검색] 브랜드별 결과:", results.map((r, i) => `${brands[i].keyword}: ${r.length}개`));
+      
       const allStores = results.flat();
-
-      console.log("총 매장 수:", allStores.length);
+      console.log("🏪 [매장 검색] 총 매장 수:", allStores.length);
+      console.log("📋 [매장 검색] 최종 매장 목록:", allStores);
+      
       setStores(allStores);
       setIsLoadingStores(false);
+      console.log("✅ [매장 검색] 완료 - 상태 업데이트 완료");
     } catch (error) {
-      console.error("매장 검색 실패:", error);
+      console.error("❌ [매장 검색] 실패:", error);
+      console.error("에러 스택:", (error as Error).stack);
       setIsLoadingStores(false);
       toast({
         title: "매장 정보 로딩 실패",
