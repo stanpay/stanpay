@@ -15,6 +15,10 @@ const MyPage = () => {
   const [userName, setUserName] = useState<string>("사용자");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [points, setPoints] = useState<number>(15000);
+  const [gifticonsCount, setGifticonsCount] = useState<number>(12);
+  const [paymentCount, setPaymentCount] = useState<number>(45);
+  const [sellingCount, setSellingCount] = useState<number>(8);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -28,11 +32,29 @@ const MyPage = () => {
         const displayName = email.split("@")[0];
         setUserName(displayName);
         setIsLoggedIn(true);
+
+        // 프로필 정보 가져오기
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('points, gifticons_count, payment_count, selling_count')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profile) {
+          setPoints(profile.points);
+          setGifticonsCount(profile.gifticons_count);
+          setPaymentCount(profile.payment_count);
+          setSellingCount(profile.selling_count);
+        }
       } else {
         // 로그인하지 않은 경우 더미 데이터 사용
         setUserEmail("user@example.com");
         setUserName("사용자");
         setIsLoggedIn(false);
+        setPoints(15000);
+        setGifticonsCount(12);
+        setPaymentCount(45);
+        setSellingCount(8);
       }
       
       setLoading(false);
@@ -45,12 +67,31 @@ const MyPage = () => {
         setUserEmail("user@example.com");
         setUserName("사용자");
         setIsLoggedIn(false);
+        setPoints(15000);
+        setGifticonsCount(12);
+        setPaymentCount(45);
+        setSellingCount(8);
       } else if (session) {
         const email = session.user.email || "";
         setUserEmail(email);
         const displayName = email.split("@")[0];
         setUserName(displayName);
         setIsLoggedIn(true);
+        
+        // 프로필 정보 가져오기
+        supabase
+          .from('profiles')
+          .select('points, gifticons_count, payment_count, selling_count')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profile }) => {
+            if (profile) {
+              setPoints(profile.points);
+              setGifticonsCount(profile.gifticons_count);
+              setPaymentCount(profile.payment_count);
+              setSellingCount(profile.selling_count);
+            }
+          });
       }
     });
 
@@ -109,7 +150,7 @@ const MyPage = () => {
             <div>
               <p className="text-sm text-muted-foreground mb-1">포인트 잔액</p>
               <p className="text-2xl font-bold text-primary">
-                {isLoggedIn ? "3,000" : "15,000"} P
+                {points.toLocaleString()} P
               </p>
             </div>
             <Button className="rounded-xl gap-2">
@@ -122,19 +163,19 @@ const MyPage = () => {
           <div className="grid grid-cols-3 gap-4 pt-4">
             <Link to="/my-gifticons" className="text-center cursor-pointer hover:opacity-80 transition-opacity">
               <p className="text-2xl font-bold text-primary mb-1">
-                {isLoggedIn ? "0" : "12"}
+                {gifticonsCount}
               </p>
               <p className="text-xs text-muted-foreground">보유 기프티콘</p>
             </Link>
             <Link to="/history" className="text-center border-l border-r border-border cursor-pointer hover:opacity-80 transition-opacity">
               <p className="text-2xl font-bold text-primary mb-1">
-                {isLoggedIn ? "0" : "45"}
+                {paymentCount}
               </p>
               <p className="text-xs text-muted-foreground">결제 횟수</p>
             </Link>
             <Link to="/my-gifticons?filter=사용가능&subFilter=판매중" className="text-center cursor-pointer hover:opacity-80 transition-opacity">
               <p className="text-2xl font-bold text-primary mb-1">
-                {isLoggedIn ? "0" : "8"}
+                {sellingCount}
               </p>
               <p className="text-xs text-muted-foreground">판매 중</p>
             </Link>

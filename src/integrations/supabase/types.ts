@@ -18,22 +18,34 @@ export type Database = {
         Row: {
           created_at: string
           email: string
+          gifticons_count: number
           id: string
           name: string | null
+          payment_count: number
+          points: number
+          selling_count: number
           updated_at: string
         }
         Insert: {
           created_at?: string
           email: string
+          gifticons_count?: number
           id: string
           name?: string | null
+          payment_count?: number
+          points?: number
+          selling_count?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
           email?: string
+          gifticons_count?: number
           id?: string
           name?: string | null
+          payment_count?: number
+          points?: number
+          selling_count?: number
           updated_at?: string
         }
         Relationships: []
