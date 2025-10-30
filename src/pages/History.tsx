@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,80 +11,132 @@ import { format, isToday, isYesterday, parse } from "date-fns";
 import { ko } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import BottomNav from "@/components/BottomNav";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Payment {
+  id: string;
+  store: string;
+  date: string;
+  time: string;
+  amount: number;
+  method: string;
+  status: string;
+}
 
 const History = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  const today = format(new Date(), "yyyy.MM.dd");
-  const yesterday = format(new Date(Date.now() - 86400000), "yyyy.MM.dd");
-  const twoDaysAgo = format(new Date(Date.now() - 172800000), "yyyy.MM.dd");
+  useEffect(() => {
+    const checkUserAndLoadHistory = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session) {
+        setIsLoggedIn(true);
+        
+        // Load user's payment history from database
+        const { data, error } = await supabase
+          .from('payment_history')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('date', { ascending: false })
+          .order('time', { ascending: false });
 
-  const payments = [
-    {
-      id: 1,
-      store: "스타벅스 강남점",
-      date: today,
-      time: "14:30",
-      amount: 4500,
-      method: "카카오페이",
-      status: "완료",
-    },
-    {
-      id: 2,
-      store: "CU 역삼점",
-      date: today,
-      time: "10:20",
-      amount: 5000,
-      method: "네이버페이",
-      status: "완료",
-    },
-    {
-      id: 3,
-      store: "맥도날드 신사점",
-      date: yesterday,
-      time: "12:15",
-      amount: 6500,
-      method: "토스페이",
-      status: "완료",
-    },
-    {
-      id: 4,
-      store: "GS25 서초점",
-      date: yesterday,
-      time: "09:45",
-      amount: 3000,
-      method: "삼성페이",
-      status: "완료",
-    },
-    {
-      id: 5,
-      store: "스타벅스 서초점",
-      date: twoDaysAgo,
-      time: "16:30",
-      amount: 4500,
-      method: "카카오페이",
-      status: "취소",
-    },
-    {
-      id: 6,
-      store: "투썸플레이스 역삼점",
-      date: twoDaysAgo,
-      time: "15:00",
-      amount: 5500,
-      method: "토스페이",
-      status: "완료",
-    },
-    {
-      id: 7,
-      store: "이디야커피 강남점",
-      date: twoDaysAgo,
-      time: "11:20",
-      amount: 3500,
-      method: "카카오페이",
-      status: "완료",
-    },
-  ];
+        if (data && !error) {
+          const formattedPayments: Payment[] = data.map(p => ({
+            id: p.id,
+            store: p.store,
+            date: format(new Date(p.date), 'yyyy.MM.dd'),
+            time: format(new Date(`2000-01-01 ${p.time}`), 'HH:mm'),
+            amount: p.amount,
+            method: p.method,
+            status: p.status
+          }));
+          setPayments(formattedPayments);
+        }
+      } else {
+        setIsLoggedIn(false);
+        // Show dummy data for non-logged in users
+        const today = format(new Date(), "yyyy.MM.dd");
+        const yesterday = format(new Date(Date.now() - 86400000), "yyyy.MM.dd");
+        const twoDaysAgo = format(new Date(Date.now() - 172800000), "yyyy.MM.dd");
+
+        const dummyPayments: Payment[] = [
+          {
+            id: "1",
+            store: "스타벅스 강남점",
+            date: today,
+            time: "14:30",
+            amount: 4500,
+            method: "카카오페이",
+            status: "완료",
+          },
+          {
+            id: "2",
+            store: "CU 역삼점",
+            date: today,
+            time: "10:20",
+            amount: 5000,
+            method: "네이버페이",
+            status: "완료",
+          },
+          {
+            id: "3",
+            store: "맥도날드 신사점",
+            date: yesterday,
+            time: "12:15",
+            amount: 6500,
+            method: "토스페이",
+            status: "완료",
+          },
+          {
+            id: "4",
+            store: "GS25 서초점",
+            date: yesterday,
+            time: "09:45",
+            amount: 3000,
+            method: "삼성페이",
+            status: "완료",
+          },
+          {
+            id: "5",
+            store: "스타벅스 서초점",
+            date: twoDaysAgo,
+            time: "16:30",
+            amount: 4500,
+            method: "카카오페이",
+            status: "취소",
+          },
+          {
+            id: "6",
+            store: "투썸플레이스 역삼점",
+            date: twoDaysAgo,
+            time: "15:00",
+            amount: 5500,
+            method: "토스페이",
+            status: "완료",
+          },
+          {
+            id: "7",
+            store: "이디야커피 강남점",
+            date: twoDaysAgo,
+            time: "11:20",
+            amount: 3500,
+            method: "카카오페이",
+            status: "완료",
+          },
+        ];
+        setPayments(dummyPayments);
+      }
+      
+      setLoading(false);
+    };
+
+    checkUserAndLoadHistory();
+  }, []);
 
   // 검색 및 날짜 필터링
   const filteredPayments = payments.filter((payment) => {
@@ -126,6 +178,14 @@ const History = () => {
     if (isYesterday(date)) return "어제";
     return dateStr;
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
+        <p className="text-muted-foreground">로딩 중...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -207,7 +267,7 @@ const History = () => {
         <div className="space-y-6">
           {Object.keys(groupedPayments).length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
-              검색 결과가 없습니다
+              {isLoggedIn ? "결제 내역이 없습니다" : "로그인 후 이용해주세요"}
             </div>
           ) : (
             Object.entries(groupedPayments).map(([date, datePayments]) => (

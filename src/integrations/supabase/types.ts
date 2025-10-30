@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      gifticons: {
+        Row: {
+          brand: string
+          created_at: string | null
+          expiry_date: string
+          id: string
+          image: string
+          is_selling: boolean | null
+          name: string
+          original_price: number
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          brand: string
+          created_at?: string | null
+          expiry_date: string
+          id?: string
+          image: string
+          is_selling?: boolean | null
+          name: string
+          original_price: number
+          status: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          created_at?: string | null
+          expiry_date?: string
+          id?: string
+          image?: string
+          is_selling?: boolean | null
+          name?: string
+          original_price?: number
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payment_history: {
+        Row: {
+          amount: number
+          created_at: string | null
+          date: string
+          id: string
+          method: string
+          status: string
+          store: string
+          time: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          date: string
+          id?: string
+          method: string
+          status: string
+          store: string
+          time: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          date?: string
+          id?: string
+          method?: string
+          status?: string
+          store?: string
+          time?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -84,6 +162,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_settings: {
+        Row: {
+          cjone: boolean | null
+          compose_coffee: boolean | null
+          created_at: string | null
+          ediya: boolean | null
+          happy_point: boolean | null
+          hpoint: boolean | null
+          id: string
+          kakaopay: boolean | null
+          kbpay: boolean | null
+          kt: boolean | null
+          lg_uplus: boolean | null
+          lpoint: boolean | null
+          mega_coffee: boolean | null
+          naverpay: boolean | null
+          paik: boolean | null
+          payco: boolean | null
+          samsungpay: boolean | null
+          shinhan: boolean | null
+          skt: boolean | null
+          starbucks: boolean | null
+          tosspay: boolean | null
+          twosome: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cjone?: boolean | null
+          compose_coffee?: boolean | null
+          created_at?: string | null
+          ediya?: boolean | null
+          happy_point?: boolean | null
+          hpoint?: boolean | null
+          id?: string
+          kakaopay?: boolean | null
+          kbpay?: boolean | null
+          kt?: boolean | null
+          lg_uplus?: boolean | null
+          lpoint?: boolean | null
+          mega_coffee?: boolean | null
+          naverpay?: boolean | null
+          paik?: boolean | null
+          payco?: boolean | null
+          samsungpay?: boolean | null
+          shinhan?: boolean | null
+          skt?: boolean | null
+          starbucks?: boolean | null
+          tosspay?: boolean | null
+          twosome?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cjone?: boolean | null
+          compose_coffee?: boolean | null
+          created_at?: string | null
+          ediya?: boolean | null
+          happy_point?: boolean | null
+          hpoint?: boolean | null
+          id?: string
+          kakaopay?: boolean | null
+          kbpay?: boolean | null
+          kt?: boolean | null
+          lg_uplus?: boolean | null
+          lpoint?: boolean | null
+          mega_coffee?: boolean | null
+          naverpay?: boolean | null
+          paik?: boolean | null
+          payco?: boolean | null
+          samsungpay?: boolean | null
+          shinhan?: boolean | null
+          skt?: boolean | null
+          starbucks?: boolean | null
+          tosspay?: boolean | null
+          twosome?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
