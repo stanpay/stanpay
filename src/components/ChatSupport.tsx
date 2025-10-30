@@ -5,7 +5,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Message {
   id: number;
@@ -16,6 +19,7 @@ interface Message {
 
 const ChatSupport = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const chatRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
@@ -28,6 +32,20 @@ const ChatSupport = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [includeCurrentPage, setIncludeCurrentPage] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    // Check authentication status
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(!!session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const getPageName = (path: string) => {
     const pageNames: Record<string, string> = {
@@ -65,8 +83,18 @@ const ChatSupport = () => {
     };
   }, [isOpen]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
+
+    if (!isLoggedIn) {
+      toast({
+        title: "로그인 필요",
+        description: "상담을 이용하려면 로그인이 필요합니다.",
+        variant: "destructive",
+      });
+      navigate("/");
+      return;
+    }
 
     const newMessage: Message = {
       id: messages.length + 1,
@@ -76,7 +104,33 @@ const ChatSupport = () => {
     };
 
     setMessages([...messages, newMessage]);
+    const messageText = inputValue;
     setInputValue("");
+
+    try {
+      // Save message to database
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { error } = await supabase.from("support_messages").insert({
+          user_id: user.id,
+          page_name: currentPageName,
+          page_path: location.pathname,
+          message: messageText,
+        });
+
+        if (error) {
+          console.error("Error saving message:", error);
+          toast({
+            title: "메시지 저장 실패",
+            description: "메시지 저장 중 오류가 발생했습니다.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    }
 
     // 자동 응답 시뮬레이션
     setTimeout(() => {
@@ -168,15 +222,26 @@ const ChatSupport = () => {
 
           {/* Input */}
           <div className="p-4 border-t border-border">
+            {!isLoggedIn && (
+              <div className="mb-2 text-xs text-muted-foreground text-center">
+                상담을 이용하려면 로그인이 필요합니다
+              </div>
+            )}
             <div className="flex gap-2">
-              <Input
+              <Textarea
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleSend()}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
                 placeholder="메시지를 입력하세요..."
-                className="flex-1"
+                className="flex-1 min-h-[80px] resize-none"
+                disabled={!isLoggedIn}
               />
-              <Button onClick={handleSend} size="icon">
+              <Button onClick={handleSend} size="icon" disabled={!isLoggedIn}>
                 <Send className="h-4 w-4" />
               </Button>
             </div>

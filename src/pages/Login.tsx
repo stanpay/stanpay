@@ -1,11 +1,95 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MessageCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Login = () => {
-  const handleKakaoLogin = () => {
-    // 카카오 로그인 로직은 나중에 구현
-    console.log("카카오 로그인");
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    // Check if user is already logged in
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate("/main");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        navigate("/main");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "로그인 성공",
+        description: "환영합니다!",
+      });
+    } catch (error: any) {
+      toast({
+        title: "로그인 실패",
+        description: error.message || "이메일 또는 비밀번호를 확인해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            name: name,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "회원가입 성공",
+        description: "계정이 생성되었습니다. 자동으로 로그인됩니다.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "회원가입 실패",
+        description: error.message || "회원가입 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -24,22 +108,97 @@ const Login = () => {
         </div>
 
         <div className="bg-card rounded-3xl p-8 shadow-xl border border-border/50">
-          <Button 
-            onClick={handleKakaoLogin}
-            className="w-full h-14 text-lg font-semibold bg-[#FEE500] hover:bg-[#FEE500]/90 text-[#000000] rounded-xl"
-          >
-            <MessageCircle className="mr-2 h-5 w-5" />
-            카카오톡으로 시작하기
-          </Button>
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="login">로그인</TabsTrigger>
+              <TabsTrigger value="signup">회원가입</TabsTrigger>
+            </TabsList>
 
-          <Link to="/main" className="block mt-4">
-            <Button 
-              variant="outline"
-              className="w-full h-14 text-lg font-semibold rounded-xl"
-            >
-              데모 구경하기
-            </Button>
-          </Link>
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">이메일</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="이메일을 입력하세요"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">비밀번호</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    placeholder="비밀번호를 입력하세요"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button 
+                  type="submit"
+                  className="w-full h-12 text-lg font-semibold rounded-xl"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "로그인 중..." : "로그인"}
+                </Button>
+              </form>
+            </TabsContent>
+
+            <TabsContent value="signup">
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name">이름</Label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="이름을 입력하세요"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">이메일</Label>
+                  <Input
+                    id="signup-email"
+                    type="email"
+                    placeholder="이메일을 입력하세요"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">비밀번호</Label>
+                  <Input
+                    id="signup-password"
+                    type="password"
+                    placeholder="비밀번호를 입력하세요 (최소 6자)"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    disabled={isLoading}
+                  />
+                </div>
+                <Button 
+                  type="submit"
+                  className="w-full h-12 text-lg font-semibold rounded-xl"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "가입 중..." : "회원가입"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
