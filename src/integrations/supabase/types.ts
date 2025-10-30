@@ -45,7 +45,7 @@ export type Database = {
           message: string
           page_name: string
           page_path: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -53,7 +53,7 @@ export type Database = {
           message: string
           page_name: string
           page_path: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -61,7 +61,7 @@ export type Database = {
           message?: string
           page_name?: string
           page_path?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
