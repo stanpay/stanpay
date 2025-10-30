@@ -13,7 +13,6 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<"otp" | "magiclink">("otp");
 
   useEffect(() => {
     // Check if user is already logged in
@@ -37,39 +36,21 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      if (loginMethod === "otp") {
-        // Send OTP code
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            shouldCreateUser: true,
-          },
-        });
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/main`,
+        },
+      });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        setOtpSent(true);
-        toast({
-          title: "인증번호 발송",
-          description: "이메일로 6자리 인증번호가 발송되었습니다.",
-        });
-      } else {
-        // Send Magic Link
-        const { error } = await supabase.auth.signInWithOtp({
-          email,
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo: `${window.location.origin}/main`,
-          },
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "매직링크 발송",
-          description: "이메일로 로그인 링크가 발송되었습니다. 링크를 클릭하면 자동으로 로그인됩니다.",
-        });
-      }
+      setOtpSent(true);
+      toast({
+        title: "인증 이메일 발송",
+        description: "이메일을 확인하세요. 인증번호를 입력하거나 링크를 클릭하여 로그인할 수 있습니다.",
+      });
     } catch (error: any) {
       toast({
         title: "발송 실패",
@@ -140,36 +121,12 @@ const Login = () => {
                 />
               </div>
               
-              <div className="space-y-3">
-                <Label>로그인 방식</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={loginMethod === "otp" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setLoginMethod("otp")}
-                    disabled={isLoading}
-                  >
-                    인증번호
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={loginMethod === "magiclink" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setLoginMethod("magiclink")}
-                    disabled={isLoading}
-                  >
-                    매직링크
-                  </Button>
-                </div>
-              </div>
-
               <Button 
                 type="submit"
                 className="w-full h-12 text-lg font-semibold rounded-xl"
                 disabled={isLoading}
               >
-                {isLoading ? "발송 중..." : loginMethod === "otp" ? "인증번호 받기" : "매직링크 받기"}
+                {isLoading ? "발송 중..." : "인증 이메일 받기"}
               </Button>
             </form>
           ) : (
@@ -224,10 +181,8 @@ const Login = () => {
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               {otpSent 
-                ? "이메일로 발송된 인증번호를 입력하세요" 
-                : loginMethod === "otp" 
-                  ? "이메일로 6자리 인증번호를 받아 로그인하세요"
-                  : "이메일로 로그인 링크를 받아 클릭하면 자동 로그인됩니다"
+                ? "이메일의 인증번호를 입력하거나 링크를 클릭하세요" 
+                : "이메일로 인증번호와 로그인 링크를 받아 간편하게 로그인하세요"
               }
             </p>
           </div>
