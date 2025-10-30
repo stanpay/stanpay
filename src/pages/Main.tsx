@@ -5,6 +5,7 @@ import BottomNav from "@/components/BottomNav";
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Main = () => {
   const { toast } = useToast();
@@ -12,6 +13,88 @@ const Main = () => {
   const [sortBy, setSortBy] = useState<"distance" | "discount">("distance");
   const [currentLocation, setCurrentLocation] = useState("위치 가져오는 중...");
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  interface StoreData {
+    id: string;
+    name: string;
+    distance: string;
+    distanceNum: number;
+    image: string;
+    maxDiscount: string;
+    discountNum: number;
+    lat?: number;
+    lon?: number;
+    address?: string;
+  }
+
+  const [stores, setStores] = useState<StoreData[]>([]);
+  const [isLoadingStores, setIsLoadingStores] = useState(true);
+  const [currentCoords, setCurrentCoords] = useState<{latitude: number, longitude: number} | null>(null);
+
+  // 더미 데이터
+  const dummyStores: StoreData[] = [
+    {
+      id: "dummy-1",
+      name: "스타벅스 강남역점",
+      distance: "350m",
+      distanceNum: 350,
+      image: "starbucks",
+      maxDiscount: "2,500원",
+      discountNum: 2500,
+      address: "서울 강남구 강남대로 지하 396"
+    },
+    {
+      id: "dummy-2",
+      name: "베스킨라빈스 역삼점",
+      distance: "520m",
+      distanceNum: 520,
+      image: "baskin",
+      maxDiscount: "3,000원",
+      discountNum: 3000,
+      address: "서울 강남구 역삼동 735-3"
+    },
+    {
+      id: "dummy-3",
+      name: "메가커피 테헤란로점",
+      distance: "280m",
+      distanceNum: 280,
+      image: "mega",
+      maxDiscount: "1,800원",
+      discountNum: 1800,
+      address: "서울 강남구 테헤란로 123"
+    },
+    {
+      id: "dummy-4",
+      name: "파스쿠찌 삼성점",
+      distance: "450m",
+      distanceNum: 450,
+      image: "pascucci",
+      maxDiscount: "2,300원",
+      discountNum: 2300,
+      address: "서울 강남구 삼성동 156-1"
+    },
+    {
+      id: "dummy-5",
+      name: "투썸플레이스 논현점",
+      distance: "610m",
+      distanceNum: 610,
+      image: "twosome",
+      maxDiscount: "2,400원",
+      discountNum: 2400,
+      address: "서울 강남구 논현동 120-5"
+    },
+    {
+      id: "dummy-6",
+      name: "스타벅스 선릉역점",
+      distance: "730m",
+      distanceNum: 730,
+      image: "starbucks",
+      maxDiscount: "2,500원",
+      discountNum: 2500,
+      address: "서울 강남구 선릉로 428"
+    },
+  ];
 
   const getAddressFromCoords = async (latitude: number, longitude: number) => {
     try {
@@ -91,25 +174,44 @@ const Main = () => {
   };
 
   useEffect(() => {
-    const waitForKakao = () => {
-      return new Promise<boolean>((resolve) => {
-        console.log("🔍 [Kakao SDK] 로드 확인 시작");
-        
-        const checkKakao = () => {
-          if ((window as any).kakao && (window as any).kakao.maps) {
-            console.log("✅ [Kakao SDK] 로드 완료");
-            resolve(true);
-          } else {
-            console.log("⏳ [Kakao SDK] 대기 중...");
-            setTimeout(checkKakao, 100);
-          }
-        };
-        
-        checkKakao();
-      });
-    };
+    const checkAuthAndInitLocation = async () => {
+      console.log("🔐 [인증 확인] 시작");
+      
+      // 로그인 상태 확인
+      const { data: { session } } = await supabase.auth.getSession();
+      const loggedIn = !!session;
+      setIsLoggedIn(loggedIn);
+      console.log(`🔐 [인증 상태] ${loggedIn ? '로그인됨' : '로그인 안됨'}`);
+      
+      if (!loggedIn) {
+        // 로그인하지 않은 경우 더미 데이터 사용
+        console.log("📦 [더미 데이터] 사용");
+        setCurrentLocation("강남구 역삼동");
+        setStores(dummyStores);
+        setIsLoadingLocation(false);
+        setIsLoadingStores(false);
+        return;
+      }
 
-    const initLocation = async () => {
+      // 로그인한 경우 실제 위치 가져오기
+      const waitForKakao = () => {
+        return new Promise<boolean>((resolve) => {
+          console.log("🔍 [Kakao SDK] 로드 확인 시작");
+          
+          const checkKakao = () => {
+            if ((window as any).kakao && (window as any).kakao.maps) {
+              console.log("✅ [Kakao SDK] 로드 완료");
+              resolve(true);
+            } else {
+              console.log("⏳ [Kakao SDK] 대기 중...");
+              setTimeout(checkKakao, 100);
+            }
+          };
+          
+          checkKakao();
+        });
+      };
+
       console.log("📍 [위치 초기화] 시작");
       // Kakao SDK 로드 대기
       const kakaoReady = await waitForKakao();
@@ -181,10 +283,18 @@ const Main = () => {
       }
     };
 
-    initLocation();
+    checkAuthAndInitLocation();
   }, [toast]);
 
   const handleRefreshLocation = async () => {
+    if (!isLoggedIn) {
+      toast({
+        title: "로그인 필요",
+        description: "위치 기반 매장 검색을 이용하려면 로그인이 필요합니다.",
+      });
+      return;
+    }
+    
     setIsLoadingLocation(true);
     setCurrentLocation("위치 확인 중...");
     
@@ -229,22 +339,6 @@ const Main = () => {
     }
   };
 
-  interface StoreData {
-    id: string;
-    name: string;
-    distance: string;
-    distanceNum: number;
-    image: string;
-    maxDiscount: string;
-    discountNum: number;
-    lat?: number;
-    lon?: number;
-    address?: string;
-  }
-
-  const [stores, setStores] = useState<StoreData[]>([]);
-  const [isLoadingStores, setIsLoadingStores] = useState(true);
-  const [currentCoords, setCurrentCoords] = useState<{latitude: number, longitude: number} | null>(null);
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371; // 지구 반경 (km)
@@ -386,8 +480,17 @@ const Main = () => {
           <Button 
             variant="outline" 
             className="w-full justify-between h-12 rounded-xl border-border/50 hover:border-primary/50 transition-colors"
-            disabled={isLoadingLocation}
-            onClick={() => navigate('/location')}
+            disabled={isLoadingLocation || !isLoggedIn}
+            onClick={() => {
+              if (isLoggedIn) {
+                navigate('/location');
+              } else {
+                toast({
+                  title: "로그인 필요",
+                  description: "위치 설정을 이용하려면 로그인이 필요합니다.",
+                });
+              }
+            }}
           >
             <div className="flex items-center">
               {isLoadingLocation ? (
