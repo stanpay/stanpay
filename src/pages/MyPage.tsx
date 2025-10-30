@@ -62,7 +62,7 @@ const MyPage = () => {
     toast({
       title: "로그아웃 되었습니다",
     });
-    navigate("/login");
+    navigate("/");
   };
 
   const menuItems = [
@@ -166,7 +166,7 @@ const MyPage = () => {
         ) : (
           <Button
             className="w-full h-12 rounded-xl"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/")}
           >
             로그인
           </Button>
