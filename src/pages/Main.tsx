@@ -93,26 +93,28 @@ const Main = () => {
   useEffect(() => {
     const waitForKakao = async () => {
       console.log("🔍 [Kakao SDK] 로드 대기 시작");
-      // Kakao SDK가 로드될 때까지 대기
-      let attempts = 0;
-      while (!(window as any).kakao?.maps && attempts < 50) {
-        console.log(`⏳ [Kakao SDK] 대기 중... (시도 ${attempts + 1}/50)`);
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
       
-      if (!(window as any).kakao?.maps) {
-        console.error("❌ [Kakao SDK] 로드 실패 - SDK를 찾을 수 없습니다");
-        console.log("window.kakao:", (window as any).kakao);
-        toast({
-          title: "지도 로딩 실패",
-          description: "페이지를 새로고침해주세요.",
-          variant: "destructive",
+      return new Promise<boolean>((resolve) => {
+        // Kakao 객체가 있는지 확인
+        if (!(window as any).kakao) {
+          console.error("❌ [Kakao SDK] Kakao 객체를 찾을 수 없습니다");
+          toast({
+            title: "지도 로딩 실패",
+            description: "페이지를 새로고침해주세요.",
+            variant: "destructive",
+          });
+          resolve(false);
+          return;
+        }
+
+        console.log("✅ [Kakao SDK] Kakao 객체 확인");
+        
+        // kakao.maps.load()를 사용하여 Maps SDK 로드
+        (window as any).kakao.maps.load(() => {
+          console.log("✅ [Kakao SDK] Maps 로드 완료", (window as any).kakao.maps);
+          resolve(true);
         });
-        return false;
-      }
-      console.log("✅ [Kakao SDK] 로드 완료", (window as any).kakao.maps);
-      return true;
+      });
     };
 
     const initLocation = async () => {
