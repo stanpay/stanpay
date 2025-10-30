@@ -185,7 +185,7 @@ const Main = () => {
       setIsLoadingStores(true);
       console.log("매장 검색 시작:", latitude, longitude);
 
-      const KAKAO_REST_API_KEY = "3a48b485f55529cddd4fdc0605637e82";
+      const KAKAO_REST_API_KEY = "160fadd95613794dce4dfea774d9913d";
       const radius = 10000; // 10km
 
       // 검색할 브랜드 목록
