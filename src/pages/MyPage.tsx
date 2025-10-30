@@ -11,25 +11,29 @@ import { useToast } from "@/hooks/use-toast";
 const MyPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [userEmail, setUserEmail] = useState<string>("");
-  const [userName, setUserName] = useState<string>("");
+  const [userEmail, setUserEmail] = useState<string>("user@example.com");
+  const [userName, setUserName] = useState<string>("사용자");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session) {
-        navigate("/login");
-        return;
+      if (session) {
+        const email = session.user.email || "";
+        setUserEmail(email);
+        
+        // 이메일 앞부분을 이름으로 사용
+        const displayName = email.split("@")[0];
+        setUserName(displayName);
+        setIsLoggedIn(true);
+      } else {
+        // 로그인하지 않은 경우 더미 데이터 사용
+        setUserEmail("user@example.com");
+        setUserName("사용자");
+        setIsLoggedIn(false);
       }
-
-      const email = session.user.email || "";
-      setUserEmail(email);
-      
-      // 이메일 앞부분을 이름으로 사용
-      const displayName = email.split("@")[0];
-      setUserName(displayName);
       
       setLoading(false);
     };
@@ -38,7 +42,15 @@ const MyPage = () => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
-        navigate("/login");
+        setUserEmail("user@example.com");
+        setUserName("사용자");
+        setIsLoggedIn(false);
+      } else if (session) {
+        const email = session.user.email || "";
+        setUserEmail(email);
+        const displayName = email.split("@")[0];
+        setUserName(displayName);
+        setIsLoggedIn(true);
       }
     });
 
@@ -141,15 +153,24 @@ const MyPage = () => {
           })}
         </div>
 
-        {/* Logout Button */}
-        <Button
-          variant="outline"
-          className="w-full h-12 rounded-xl border-border/50"
-          onClick={handleLogout}
-        >
-          <LogOut className="w-5 h-5 mr-2" />
-          로그아웃
-        </Button>
+        {/* Login/Logout Button */}
+        {isLoggedIn ? (
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-xl border-border/50"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-5 h-5 mr-2" />
+            로그아웃
+          </Button>
+        ) : (
+          <Button
+            className="w-full h-12 rounded-xl"
+            onClick={() => navigate("/login")}
+          >
+            로그인
+          </Button>
+        )}
       </main>
 
       <BottomNav />
