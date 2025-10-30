@@ -91,7 +91,34 @@ const Main = () => {
   };
 
   useEffect(() => {
+    const waitForKakao = async () => {
+      // Kakao SDK가 로드될 때까지 대기
+      let attempts = 0;
+      while (!(window as any).kakao?.maps && attempts < 50) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (!(window as any).kakao?.maps) {
+        console.error("Kakao SDK 로드 실패");
+        toast({
+          title: "지도 로딩 실패",
+          description: "페이지를 새로고침해주세요.",
+          variant: "destructive",
+        });
+        return false;
+      }
+      return true;
+    };
+
     const initLocation = async () => {
+      // Kakao SDK 로드 대기
+      const kakaoReady = await waitForKakao();
+      if (!kakaoReady) {
+        setIsLoadingLocation(false);
+        return;
+      }
+
       // Main 페이지 진입 시 항상 현재 위치를 새로 가져오기
       setIsLoadingLocation(true);
 
@@ -231,14 +258,11 @@ const Main = () => {
       setIsLoadingStores(true);
       console.log("매장 검색 시작:", latitude, longitude);
 
-      // Kakao SDK 확인
-      if (!(window as any).kakao || !(window as any).kakao.maps) {
-        console.error("Kakao SDK를 사용할 수 없습니다");
-        throw new Error("Kakao SDK 로드 실패");
-      }
-      console.log("Kakao SDK 사용 가능");
-
       const kakao = (window as any).kakao;
+      if (!kakao?.maps) {
+        throw new Error("Kakao SDK가 로드되지 않았습니다");
+      }
+
       const radius = 10000; // 10km (미터 단위)
 
       // 검색할 브랜드 목록
