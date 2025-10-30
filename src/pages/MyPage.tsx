@@ -3,9 +3,56 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ChevronRight, Gift, History, Settings, LogOut, Plus } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const MyPage = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [userEmail, setUserEmail] = useState<string>("");
+  const [userName, setUserName] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+
+      const email = session.user.email || "";
+      setUserEmail(email);
+      
+      // 이메일 앞부분을 이름으로 사용
+      const displayName = email.split("@")[0];
+      setUserName(displayName);
+      
+      setLoading(false);
+    };
+
+    checkUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        navigate("/login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "로그아웃 되었습니다",
+    });
+    navigate("/login");
+  };
+
   const menuItems = [
     { icon: Gift, label: "내 기프티콘", path: "/my-gifticons" },
     { icon: History, label: "결제 내역", path: "/history" },
@@ -13,6 +60,14 @@ const MyPage = () => {
     { icon: Settings, label: "결제수단 설정", path: "/payment-methods" },
     { icon: Settings, label: "설정", path: "/settings" },
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
+        <p className="text-muted-foreground">로딩 중...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -28,12 +83,12 @@ const MyPage = () => {
           <div className="flex items-center gap-4 mb-6">
             <Avatar className="w-16 h-16">
               <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-primary-foreground text-xl font-bold">
-                사용자
+                {userName.slice(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-xl font-bold mb-1">사용자님</h2>
-              <p className="text-sm text-muted-foreground">user@example.com</p>
+              <h2 className="text-xl font-bold mb-1">{userName}님</h2>
+              <p className="text-sm text-muted-foreground">{userEmail}</p>
             </div>
           </div>
 
@@ -90,6 +145,7 @@ const MyPage = () => {
         <Button
           variant="outline"
           className="w-full h-12 rounded-xl border-border/50"
+          onClick={handleLogout}
         >
           <LogOut className="w-5 h-5 mr-2" />
           로그아웃
