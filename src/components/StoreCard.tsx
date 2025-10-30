@@ -1,11 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
-import starbucksLogo from "@/assets/starbucks-logo.png";
-import baskinLogo from "@/assets/baskin-logo.png";
-import megaLogo from "@/assets/mega-logo.png";
-import pascucciLogo from "@/assets/pascucci-logo.png";
-import twosomeLogo from "@/assets/twosome-logo.png";
 
 interface StoreCardProps {
   id: string;
@@ -17,15 +12,15 @@ interface StoreCardProps {
 }
 
 const brandLogos: Record<string, string> = {
-  starbucks: starbucksLogo,
-  baskin: baskinLogo,
-  mega: megaLogo,
-  pascucci: pascucciLogo,
-  twosome: twosomeLogo,
+  starbucks: "https://i.namu.wiki/i/j2uG0oGT3wrVr2SoqmAPs-tTDbpRMy13rbAkuB60OpbSH5X2L0TNa5D456eeYqlDE832etwUebQ6R_q56VoyZPSxDlTl6Fs9nqcSSWKzjpbCVAFDDwS-XMwic7e9xGPkU6BjFGV-bACJVMJJGfdtpA.svg",
+  baskin: "https://i.namu.wiki/i/Hul5w8GKariLeNjwOLD1ynOaxHclsA3ShBupmWUHVp-qEv7jLEqXV9ubh3OARuZ7E6KeyrB8RXT6THbwhhXnVSLxAWNdoi4MQ7GoEVHUMrMD6wrQis7otb4j2qCF_VmHQbHnmiAmSTJkm3J4vSlCpQ.svg",
+  mega: "https://i.namu.wiki/i/How4F3VhKeoQ_71vK2j-B-9frLmAcaTQ0h9Qk34yiwS8SYqVa0sTZ2J8k5j8Fk2MneMUhNCQ-WNGMy_Bgf5hDso5IcLSvo1OEXNR9g50sKuNmgO5dcMW1ZdOnG27guwYRkpSm9O_t6BopT8tSJrMCA.svg",
+  pascucci: "https://i.namu.wiki/i/mElShYb8V7AOkXkBsnZl2_4Laf2Z7j00o6O8cXJDdrF8Td8vUOGGJw4v4EwbF-S5tLG-P_TJg1RZLxv_zjpOlQ.webp",
+  twosome: "https://i.namu.wiki/i/7WMmrZsQyrJt0WADKOLxM0PkYLFw9mDhrpU_Qf0pRlvyUyygbwc_uXHbmyHuqOp8LQ-mCvmjhSqU2_lKWHwPfw.svg",
 };
 
 const StoreCard = ({ id, name, distance, image, maxDiscount, address }: StoreCardProps) => {
-  const logoSrc = brandLogos[image] || starbucksLogo;
+  const logoSrc = brandLogos[image] || brandLogos.starbucks;
   
   return (
     <Link to={`/payment/${id}`}>
