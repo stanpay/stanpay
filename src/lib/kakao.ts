@@ -8,7 +8,11 @@ export async function loadKakaoMaps(appKey?: string): Promise<typeof window & { 
   if (!appKey) {
     appKey = (import.meta as any).env?.VITE_KAKAO_APP_KEY;
   }
-  if (!appKey) throw new Error('VITE_KAKAO_APP_KEY is not set');
+  if (!appKey) {
+    const errorMsg = 'VITE_KAKAO_APP_KEY is not set. Please set the environment variable in your deployment platform (e.g., Vercel, Netlify) or .env file for local development.';
+    console.error('❌ [Kakao SDK]', errorMsg);
+    throw new Error(errorMsg);
+  }
 
   // 이미 로딩 중인 스크립트가 있으면 대기
   const existing = document.querySelector('script[data-kakao-maps="true"]') as HTMLScriptElement | null;

@@ -260,12 +260,20 @@ const Main = () => {
         const { loadKakaoMaps } = await import("@/lib/kakao");
         await loadKakaoMaps();
         console.log("✅ [Kakao SDK] 로드 완료");
-      } catch (error) {
+      } catch (error: any) {
         console.error("❌ [위치 초기화] Kakao SDK 로드 실패:", error);
         setIsLoadingLocation(false);
         const defaultLocation = "강남구 역삼동";
         setCurrentLocation(defaultLocation);
         localStorage.setItem("selectedLocation", defaultLocation);
+        toast({
+          title: "위치 기반 검색 불가",
+          description: error.message || "카카오 SDK 설정 오류입니다. 배포 환경에 VITE_KAKAO_APP_KEY 환경 변수를 설정해주세요.",
+          variant: "destructive",
+        });
+        // SDK 없이도 기본 위치로 설정
+        setIsLoadingStores(false);
+        setStores([]);
         return;
       }
 
@@ -407,8 +415,14 @@ const Main = () => {
       console.log("🏪 [매장 검색] 시작:", { latitude, longitude });
 
       // Kakao SDK 로드 보장
-      const { loadKakaoMaps } = await import("@/lib/kakao");
-      await loadKakaoMaps();
+      try {
+        const { loadKakaoMaps } = await import("@/lib/kakao");
+        await loadKakaoMaps();
+      } catch (error: any) {
+        console.error("❌ [매장 검색] Kakao SDK 로드 실패:", error);
+        throw new Error(error.message || "Kakao SDK를 로드할 수 없습니다. VITE_KAKAO_APP_KEY 환경 변수를 확인해주세요.");
+      }
+      
       const kakao = (window as any).kakao;
       if (!kakao?.maps) {
         console.error("❌ [매장 검색] Kakao SDK를 찾을 수 없습니다");
