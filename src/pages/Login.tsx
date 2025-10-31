@@ -36,22 +36,26 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // 인증번호 생성 및 저장 (Edge Function 호출만)
+      // 인증번호 생성 및 저장 (Edge Function 호출)
       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+      
+      if (!SUPABASE_URL) {
+        throw new Error("Supabase URL이 설정되지 않았습니다.");
+      }
+
       const functionUrl = `${SUPABASE_URL}/functions/v1/send-verification-code`;
 
-      const response = await fetch(functionUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ email }),
+      // Supabase 클라이언트를 사용해서 Edge Function 호출
+      const { data, error } = await supabase.functions.invoke('send-verification-code', {
+        body: { email },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "인증번호 발송 실패");
+      if (error) {
+        throw new Error(error.message || "인증번호 발송 실패");
+      }
+
+      if (!data || (data as any).error) {
+        throw new Error((data as any).error || "인증번호 발송 실패");
       }
 
       setOtpSent(true);
@@ -60,6 +64,7 @@ const Login = () => {
         description: "이메일을 확인하세요. 인증번호를 입력하여 로그인하세요.",
       });
     } catch (error: any) {
+      console.error("인증번호 발송 오류:", error);
       toast({
         title: "발송 실패",
         description: error.message || "인증번호 발송 중 오류가 발생했습니다.",
@@ -76,27 +81,17 @@ const Login = () => {
 
     try {
       // 인증번호 검증 (Edge Function 호출)
-      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-      const functionUrl = `${SUPABASE_URL}/functions/v1/verify-code`;
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-
-      const response = await fetch(functionUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${accessToken || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ email, code: otp }),
+      const { data: result, error } = await supabase.functions.invoke('verify-code', {
+        body: { email, code: otp },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || "인증번호가 올바르지 않습니다.");
+      if (error) {
+        throw new Error(error.message || "인증번호 검증 실패");
       }
 
-      const result = await response.json();
+      if (!result) {
+        throw new Error("응답 데이터가 없습니다.");
+      }
       
       if (!result.valid) {
         throw new Error(result.error || "인증번호가 올바르지 않거나 만료되었습니다.");
