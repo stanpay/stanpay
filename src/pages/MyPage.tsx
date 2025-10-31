@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ChevronRight, Gift, History, Settings, LogOut, Plus } from "lucide-react";
+import { ChevronRight, Gift, History, Settings, LogOut, Plus, Package } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { isOperator } from "@/lib/admin";
 
 const MyPage = () => {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ const MyPage = () => {
   const [gifticonsCount, setGifticonsCount] = useState<number>(12);
   const [paymentCount, setPaymentCount] = useState<number>(45);
   const [sellingCount, setSellingCount] = useState<number>(8);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -46,6 +48,10 @@ const MyPage = () => {
           setPaymentCount(profile.payment_count);
           setSellingCount(profile.selling_count);
         }
+
+        // 운영자 확인
+        const admin = await isOperator();
+        setIsAdmin(admin);
       } else {
         // 로그인하지 않은 경우 더미 데이터 사용
         setUserEmail("user@example.com");
@@ -112,6 +118,10 @@ const MyPage = () => {
     { icon: Settings, label: "포인트/멤버십 관리", path: "/points-membership" },
     { icon: Settings, label: "결제수단 설정", path: "/payment-methods" },
     { icon: Settings, label: "설정", path: "/settings" },
+  ];
+
+  const adminMenuItems = [
+    { icon: Package, label: "기프티콘 등록", path: "/admin/register-gifticon" },
   ];
 
   if (loading) {
@@ -201,6 +211,31 @@ const MyPage = () => {
             );
           })}
         </div>
+
+        {/* Admin Menu Items */}
+        {isAdmin && (
+          <div className="space-y-2 mb-6">
+            <div className="px-2 py-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">관리자</p>
+            </div>
+            {adminMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.path} to={item.path}>
+                  <Card className="p-4 flex items-center justify-between hover:bg-accent transition-colors cursor-pointer rounded-xl border-border/50 border-l-4 border-l-primary">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <span className="font-medium">{item.label}</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        )}
 
         {/* Login/Logout Button */}
         {isLoggedIn ? (

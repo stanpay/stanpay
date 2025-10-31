@@ -501,6 +501,13 @@ const Main = () => {
       console.log("🏪 [매장 검색] 총 매장 수:", allStores.length);
       console.log("📋 [매장 검색] 최종 매장 목록:", allStores);
       
+      // localStorage에 매장 정보 저장 (Payment 페이지에서 사용)
+      try {
+        localStorage.setItem('nearbyStores', JSON.stringify(allStores));
+      } catch (e) {
+        console.error("localStorage 저장 오류:", e);
+      }
+      
       setStores(allStores);
       setIsLoadingStores(false);
       console.log("✅ [매장 검색] 완료 - 상태 업데이트 완료");

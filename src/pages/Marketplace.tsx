@@ -58,7 +58,7 @@ const Marketplace = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 w-full overflow-x-hidden">
       {/* Top Banner */}
       <div className="bg-primary text-primary-foreground py-3 text-center font-semibold">
         타상품 교환불가 기프티콘
@@ -66,18 +66,18 @@ const Marketplace = () => {
 
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background border-b border-border">
-        <div className="max-w-md mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" className="flex-1">
-              <span className="mr-2">📱</span>
+        <div className="w-full max-w-md mx-auto px-3 py-4">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="flex-1 text-xs px-2">
+              <span className="mr-1">📱</span>
               전체보기
             </Button>
-            <Button variant="outline" className="flex-1">
-              <span className="mr-2">🔍</span>
+            <Button variant="outline" className="flex-1 text-xs px-2">
+              <span className="mr-1">🔍</span>
               상품권류
             </Button>
-            <Button variant="outline" className="flex-1">
-              <span className="mr-2">🛒</span>
+            <Button variant="outline" className="flex-1 text-xs px-2">
+              <span className="mr-1">🛒</span>
               편의점/마트
             </Button>
           </div>
@@ -85,9 +85,9 @@ const Marketplace = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="max-w-md mx-auto px-4 py-3 flex items-center justify-between border-b border-border">
+      <div className="w-full max-w-md mx-auto px-3 py-3 flex items-center justify-between border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-foreground">전체 브랜드</span>
+          <span className="font-semibold text-foreground text-sm">전체 브랜드</span>
           <span className="text-muted-foreground">▼</span>
         </div>
         <div className="flex items-center gap-3 text-muted-foreground">
@@ -97,17 +97,12 @@ const Marketplace = () => {
       </div>
 
       {/* Products Grid */}
-      <div className="max-w-md mx-auto px-4 py-4">
-        <div className="grid grid-cols-2 gap-4">
+      <div className="w-full max-w-md mx-auto px-3 py-4">
+        <div className="grid grid-cols-2 gap-3">
           {products.map((product) => (
             <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-square bg-card flex items-center justify-center p-4 border-b border-border">
+              <div className="aspect-square bg-card flex items-center justify-center p-4 border-b border-border relative">
                 <div className="text-7xl">{product.image}</div>
-                {product.deadline && (
-                  <div className="absolute top-2 left-2 bg-background/90 px-2 py-1 rounded text-xs text-destructive">
-                    ⏰ {product.deadline}
-                  </div>
-                )}
               </div>
               <div className="p-3 space-y-2">
                 <p className="text-sm text-muted-foreground">{product.brand}</p>

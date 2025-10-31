@@ -163,6 +163,51 @@ export type Database = {
           },
         ]
       }
+      used_gifticons: {
+        Row: {
+          available_at: string
+          barcode: string
+          created_at: string | null
+          expiry_date: string
+          id: string
+          original_price: number
+          reserved_at: string | null
+          reserved_by: string | null
+          sale_price: number
+          seller_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          available_at: string
+          barcode: string
+          created_at?: string | null
+          expiry_date: string
+          id?: string
+          original_price: number
+          reserved_at?: string | null
+          reserved_by?: string | null
+          sale_price: number
+          seller_id: string
+          status: string
+          updated_at?: string | null
+        }
+        Update: {
+          available_at?: string
+          barcode?: string
+          created_at?: string | null
+          expiry_date?: string
+          id?: string
+          original_price?: number
+          reserved_at?: string | null
+          reserved_by?: string | null
+          sale_price?: number
+          seller_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           cjone: boolean | null
@@ -246,22 +291,22 @@ export type Database = {
       }
       verification_codes: {
         Row: {
-          email: string
           code: string
+          created_at: string
+          email: string
           expires_at: string
-          created_at?: string | null
         }
         Insert: {
-          email: string
           code: string
+          created_at?: string
+          email: string
           expires_at: string
-          created_at?: string | null
         }
         Update: {
-          email?: string
           code?: string
+          created_at?: string
+          email?: string
           expires_at?: string
-          created_at?: string | null
         }
         Relationships: []
       }
