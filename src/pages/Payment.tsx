@@ -435,7 +435,15 @@ const Payment = () => {
         })
         .in('id', idsToReserve);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("기프티콘 예약 오류 상세:", {
+          error: updateError,
+          userId: session.user.id,
+          idsToReserve,
+          idsCount: idsToReserve.length
+        });
+        throw updateError;
+      }
 
       // 선택 상태 업데이트
       setSelectedGifticons(new Map(selectedGifticons).set(gifticon.sale_price.toString(), {
