@@ -98,84 +98,92 @@ const Main = () => {
 
   const getAddressFromCoords = async (latitude: number, longitude: number) => {
     try {
-      // Kakao 로컬 API 사용 (CORS 지원, 한국 주소에 최적화)
-      const kakaoAppKey = (import.meta as any).env?.VITE_KAKAO_APP_KEY;
-      if (!kakaoAppKey) {
-        console.error("Kakao API 키가 설정되지 않았습니다.");
+      console.log("🏠 [주소 변환] 시작:", { latitude, longitude });
+      
+      // Kakao Maps SDK 로드 보장
+      const { loadKakaoMaps } = await import("@/lib/kakao");
+      await loadKakaoMaps();
+      
+      const kakao = (window as any).kakao;
+      if (!kakao?.maps?.services) {
+        console.error("❌ [주소 변환] Kakao Maps services를 찾을 수 없습니다");
         return "위치를 확인할 수 없음";
       }
 
-      const response = await fetch(
-        `https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${longitude}&y=${latitude}&input_coord=WGS84`,
-        {
-          headers: {
-            'Authorization': `KakaoAK ${kakaoAppKey}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Kakao API 응답 오류: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log("Kakao API 응답:", data);
-
-      if (data.documents && data.documents.length > 0) {
-        // 지번 주소 우선, 없으면 도로명 주소 사용
-        const address = data.documents[0].address || data.documents[0].road_address;
-        
-        if (address) {
-          console.log("주소 데이터:", address);
-          
-          // 시/군 단위 추출 (예: 제주시, 서울특별시 -> 서울시)
-          let cityName = "";
-          
-          // region_2depth_name에 시/군/구 정보가 있음 (예: 제주시, 강남구)
-          if (address.region_2depth_name) {
-            cityName = address.region_2depth_name;
-            
-            // 서울특별시, 부산광역시 같은 경우 region_1depth_name 사용
-            if (address.region_1depth_name && 
-                (address.region_1depth_name.includes('특별시') || 
-                 address.region_1depth_name.includes('광역시'))) {
-              // 서울특별시 -> 서울시, 부산광역시 -> 부산시
-              cityName = address.region_1depth_name
-                .replace(/특별시$/, '시')
-                .replace(/광역시$/, '시');
-            }
-          } else if (address.region_1depth_name) {
-            // region_2depth_name이 없는 경우 (특별자치도 등)
-            cityName = address.region_1depth_name
-              .replace(/특별자치도$/, '')
-              .replace(/도$/, '')
-              .replace(/특별시$/, '시')
-              .replace(/광역시$/, '시');
-          }
-          
-          // 동/읍/면 단위 추출 (예: 연동)
-          let districtName = "";
-          if (address.region_3depth_name) {
-            districtName = address.region_3depth_name;
-          } else if (address.region_3depth_h_name) {
-            // 행정동이 있는 경우
-            districtName = address.region_3depth_h_name;
-          }
-          
-          // 결과 조합: "제주시 연동" 형식 (시/동 또는 읍/면까지)
-          if (cityName && districtName) {
-            const formattedAddress = `${cityName} ${districtName}`;
-            console.log("최종 주소:", formattedAddress);
-            return formattedAddress;
-          } else if (cityName) {
-            return cityName;
-          }
-        }
-      }
+      // Geocoder 서비스 사용 (JavaScript 키로 가능)
+      const geocoder = new kakao.maps.services.Geocoder();
       
-      return "위치를 확인할 수 없음";
+      return new Promise<string>((resolve) => {
+        const coord = new kakao.maps.LatLng(latitude, longitude);
+        const callback = (result: any, status: any) => {
+          if (status === kakao.maps.services.Status.OK) {
+            console.log("✅ [주소 변환] Kakao Geocoder 응답:", result);
+            
+            if (result.length > 0) {
+              // 지번 주소 우선, 없으면 도로명 주소 사용
+              const address = result[0].address || result[0].road_address;
+              
+              if (address) {
+                console.log("주소 데이터:", address);
+                
+                // 시/군 단위 추출 (예: 제주시, 서울특별시 -> 서울시)
+                let cityName = "";
+                
+                // region_2depth_name에 시/군/구 정보가 있음 (예: 제주시, 강남구)
+                if (address.region_2depth_name) {
+                  cityName = address.region_2depth_name;
+                  
+                  // 서울특별시, 부산광역시 같은 경우 region_1depth_name 사용
+                  if (address.region_1depth_name && 
+                      (address.region_1depth_name.includes('특별시') || 
+                       address.region_1depth_name.includes('광역시'))) {
+                    // 서울특별시 -> 서울시, 부산광역시 -> 부산시
+                    cityName = address.region_1depth_name
+                      .replace(/특별시$/, '시')
+                      .replace(/광역시$/, '시');
+                  }
+                } else if (address.region_1depth_name) {
+                  // region_2depth_name이 없는 경우 (특별자치도 등)
+                  cityName = address.region_1depth_name
+                    .replace(/특별자치도$/, '')
+                    .replace(/도$/, '')
+                    .replace(/특별시$/, '시')
+                    .replace(/광역시$/, '시');
+                }
+                
+                // 동/읍/면 단위 추출 (예: 연동)
+                let districtName = "";
+                if (address.region_3depth_name) {
+                  districtName = address.region_3depth_name;
+                } else if (address.region_3depth_h_name) {
+                  // 행정동이 있는 경우
+                  districtName = address.region_3depth_h_name;
+                }
+                
+                // 결과 조합: "제주시 연동" 형식 (시/동 또는 읍/면까지)
+                if (cityName && districtName) {
+                  const formattedAddress = `${cityName} ${districtName}`;
+                  console.log("✅ [주소 변환] 최종 주소:", formattedAddress);
+                  resolve(formattedAddress);
+                  return;
+                } else if (cityName) {
+                  console.log("✅ [주소 변환] 최종 주소:", cityName);
+                  resolve(cityName);
+                  return;
+                }
+              }
+            }
+          } else {
+            console.error("❌ [주소 변환] Geocoder 상태:", status);
+          }
+          
+          resolve("위치를 확인할 수 없음");
+        };
+        
+        geocoder.coord2Address(coord.getLng(), coord.getLat(), callback);
+      });
     } catch (error) {
-      console.error("주소 변환 실패:", error);
+      console.error("❌ [주소 변환] 실패:", error);
       return "위치를 확인할 수 없음";
     }
   };
