@@ -435,6 +435,13 @@ const Main = () => {
         console.error("❌ [매장 검색] Kakao SDK를 찾을 수 없습니다");
         throw new Error("Kakao SDK가 로드되지 않았습니다");
       }
+      
+      // services 라이브러리 확인
+      if (!kakao.maps.services) {
+        console.error("❌ [매장 검색] Kakao Maps services를 찾을 수 없습니다");
+        throw new Error("Kakao Maps services 라이브러리가 로드되지 않았습니다");
+      }
+      
       console.log("✅ [매장 검색] Kakao SDK 확인 완료");
 
       const radius = 10000; // 10km (미터 단위)

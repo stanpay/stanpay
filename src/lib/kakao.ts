@@ -45,6 +45,17 @@ export async function loadKakaoMaps(appKey?: string): Promise<typeof window & { 
     }
   });
 
+  // services 라이브러리가 로드되었는지 확인 (최대 3초 대기)
+  const maxWaitTime = 3000;
+  const startTime = Date.now();
+  while (!(window as any).kakao?.maps?.services && Date.now() - startTime < maxWaitTime) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  if (!(window as any).kakao?.maps?.services) {
+    throw new Error('Kakao Maps services library failed to load');
+  }
+
   kakaoLoaded = true;
   return window as any;
 }
