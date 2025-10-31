@@ -126,7 +126,20 @@ const Login = () => {
 
       if (error) {
         console.error("이메일 발송 오류:", error);
-        throw new Error(error.message || "이메일 발송 중 오류가 발생했습니다.");
+        
+        // Rate Limit 오류에 대한 더 친절한 메시지
+        let errorMessage = error.message || "이메일 발송 중 오류가 발생했습니다.";
+        if (error.message?.includes('rate limit') || error.message?.includes('after')) {
+          // Rate limit 오류 메시지에서 시간 추출 시도
+          const timeMatch = error.message.match(/(\d+)\s*(second|초)/i);
+          if (timeMatch) {
+            errorMessage = `보안을 위해 ${timeMatch[1]}초 후에 다시 시도해주세요.`;
+          } else {
+            errorMessage = "잠시 후 다시 시도해주세요. 보안을 위해 이메일 재전송에 제한이 있습니다.";
+          }
+        }
+        
+        throw new Error(errorMessage);
       }
 
       setOtpSent(true);
@@ -151,19 +164,37 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      // 입력된 OTP 코드 정리 (공백 제거)
+      const cleanOtp = otp.trim().replace(/\s/g, '');
+      
+      if (!cleanOtp || cleanOtp.length !== 6) {
+        throw new Error("인증번호는 6자리 숫자여야 합니다.");
+      }
+
       // Supabase의 기본 OTP 검증 방식 사용
       const {
         data: { session, user },
         error,
       } = await supabase.auth.verifyOtp({
         email: email,
-        token: otp,
+        token: cleanOtp,
         type: 'email',
       });
 
       if (error) {
         console.error("OTP 검증 오류:", error);
-        throw new Error(error.message || "인증번호가 올바르지 않습니다.");
+        
+        // 더 자세한 오류 메시지 제공
+        let errorMessage = "인증번호가 올바르지 않습니다.";
+        if (error.message?.includes('expired') || error.code === 'otp_expired') {
+          errorMessage = "인증번호가 만료되었습니다. 새로운 인증번호를 요청해주세요.";
+        } else if (error.message?.includes('invalid') || error.code === 'invalid_token') {
+          errorMessage = "인증번호가 올바르지 않습니다. 다시 확인해주세요.";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       if (session && user) {
@@ -257,11 +288,20 @@ const Login = () => {
                   type="text"
                   placeholder="6자리 인증번호를 입력하세요"
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
+                  onChange={(e) => {
+                    // 숫자만 입력 허용
+                    const value = e.target.value.replace(/[^0-9]/g, '');
+                    setOtp(value);
+                  }}
                   required
                   disabled={isLoading}
                   maxLength={6}
+                  pattern="[0-9]{6}"
+                  inputMode="numeric"
                 />
+                <p className="text-xs text-muted-foreground">
+                  이메일에 받은 6자리 인증번호를 입력하세요. 인증번호는 60분간 유효합니다.
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button 
