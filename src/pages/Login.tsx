@@ -106,6 +106,11 @@ const Login = () => {
     setIsLoading(true);
 
     try {
+      // 배포 환경 URL 확인
+      // 환경 변수에 VITE_SITE_URL이 설정되어 있으면 사용, 없으면 현재 origin 사용
+      const siteUrl = import.meta.env.VITE_SITE_URL || window.location.origin;
+      const redirectUrl = `${siteUrl}/main`;
+
       // Supabase의 기본 이메일 인증 방식 사용
       // 매직링크와 OTP가 모두 포함된 이메일을 발송합니다
       const { data, error } = await supabase.auth.signInWithOtp({
@@ -114,7 +119,8 @@ const Login = () => {
           // 사용자가 없으면 자동으로 회원가입
           shouldCreateUser: true,
           // 리다이렉트 URL 설정 (매직링크 클릭 시 이동할 주소)
-          emailRedirectTo: `${window.location.origin}/main`,
+          // 배포 환경에서는 환경 변수의 URL 사용, 개발 환경에서는 현재 origin 사용
+          emailRedirectTo: redirectUrl,
         },
       });
 

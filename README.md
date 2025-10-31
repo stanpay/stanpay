@@ -49,6 +49,8 @@ npm install
 VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 VITE_SUPABASE_PROJECT_ID=your_project_id
+# 배포 환경 URL (매직링크 리다이렉트에 사용)
+VITE_SITE_URL=https://your-domain.com
 ```
 
 `.env.example` 파일을 참고하세요.
