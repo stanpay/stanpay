@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스탠 로그인</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; background-color: #ffffff; border-radius: 12px 12px 0 0;">
+              <h1 style="margin: 0; color: #1a1a1a; font-size: 32px; font-weight: 700;">스탠</h1>
+              <p style="margin: 8px 0 0; color: #666; font-size: 16px;">결제의 기준이 되다</p>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 30px 40px; background-color: #ffffff;">
+              <h2 style="margin: 0 0 20px; color: #1a1a1a; font-size: 24px; font-weight: 600;">로그인 인증</h2>
+              
+              <p style="margin: 0 0 24px; color: #333; font-size: 16px; line-height: 1.6;">
+                안녕하세요! 아래 인증번호를 입력하거나 버튼을 클릭하여 로그인하세요.
+              </p>
+              
+              <!-- OTP Code -->
+              <div style="background-color: #f8f9fa; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center; border: 2px dashed #e0e0e0;">
+                <p style="margin: 0 0 12px; color: #666; font-size: 14px; font-weight: 500;">인증번호</p>
+                <p style="margin: 0; color: #1a1a1a; font-size: 36px; font-weight: 700; letter-spacing: 8px; font-family: 'Courier New', monospace;">{{ .Token }}</p>
+              </div>
+              
+              <!-- Magic Link Button -->
+              <div style="margin: 32px 0; text-align: center;">
+                <p style="margin: 0 0 16px; color: #666; font-size: 14px;">또는 아래 버튼을 클릭하여 로그인하세요</p>
+                <a href="{{ .ConfirmationURL }}" style="display: inline-block; background-color: #000000; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px; border: none; cursor: pointer; transition: background-color 0.2s;">
+                  로그인하기
+                </a>
+              </div>
+              
+              <!-- Info -->
+              <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e0e0e0;">
+                <p style="margin: 0 0 8px; color: #999; font-size: 12px; line-height: 1.5;">
+                  • 이 인증번호는 10분간 유효합니다.<br>
+                  • 링크와 인증번호는 한 번만 사용 가능합니다.<br>
+                  • 이 요청을 하지 않으셨다면 무시하셔도 됩니다.
+                </p>
+              </div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f8f9fa; border-radius: 0 0 12px 12px; text-align: center;">
+              <p style="margin: 0; color: #999; font-size: 12px;">© 2024 스탠. All rights reserved.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

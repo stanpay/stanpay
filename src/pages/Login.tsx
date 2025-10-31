@@ -22,6 +22,76 @@ const Login = () => {
       }
     });
 
+    // 매직링크로 리다이렉트된 경우 처리
+    const handleMagicLink = async () => {
+      // Hash fragment에서 토큰 추출 (implicit flow)
+      const hash = window.location.hash.substring(1);
+      const hashParams = new URLSearchParams(hash);
+      const accessToken = hashParams.get('access_token');
+      const type = hashParams.get('type');
+      
+      // URL query string에서 토큰 추출 (PKCE flow)
+      const urlParams = new URLSearchParams(window.location.search);
+      const tokenHash = urlParams.get('token_hash');
+      const typeFromQuery = urlParams.get('type');
+
+      // Hash fragment에 access_token이 있으면 이미 인증된 상태
+      if (accessToken) {
+        // 세션이 자동으로 생성되므로 확인만 하면 됨
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          toast({
+            title: "로그인 성공",
+            description: "환영합니다!",
+          });
+          // URL 정리
+          window.history.replaceState({}, document.title, window.location.pathname);
+          navigate("/main");
+        }
+      }
+      // PKCE flow에서 token_hash가 있으면 verifyOtp 호출
+      else if (tokenHash) {
+        setIsLoading(true);
+        try {
+          const {
+            data: { session, user },
+            error,
+          } = await supabase.auth.verifyOtp({
+            token_hash: tokenHash,
+            type: (typeFromQuery || 'email') as 'email' | 'magiclink',
+          });
+
+          if (error) {
+            console.error("매직링크 인증 오류:", error);
+            toast({
+              title: "인증 실패",
+              description: error.message || "인증 링크가 유효하지 않습니다.",
+              variant: "destructive",
+            });
+          } else if (session && user) {
+            toast({
+              title: "로그인 성공",
+              description: "환영합니다!",
+            });
+            // URL 정리
+            window.history.replaceState({}, document.title, window.location.pathname);
+            navigate("/main");
+          }
+        } catch (error: any) {
+          console.error("매직링크 처리 오류:", error);
+          toast({
+            title: "인증 실패",
+            description: error.message || "인증 링크 처리 중 오류가 발생했습니다.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    handleMagicLink();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         navigate("/main");
@@ -36,37 +106,27 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // 6자리 인증번호 생성
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10분 유효
+      // Supabase의 기본 이메일 인증 방식 사용
+      // 매직링크와 OTP가 모두 포함된 이메일을 발송합니다
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          // 사용자가 없으면 자동으로 회원가입
+          shouldCreateUser: true,
+          // 리다이렉트 URL 설정 (매직링크 클릭 시 이동할 주소)
+          emailRedirectTo: `${window.location.origin}/main`,
+        },
+      });
 
-      // DB에 직접 저장 (RLS 정책 조정 필요)
-      const { error: dbError } = await supabase
-        .from("verification_codes")
-        .upsert({ email, code, expires_at: expiresAt });
-
-      if (dbError) {
-        console.error("DB 저장 오류:", dbError);
-        throw new Error("인증번호 저장 실패: " + dbError.message);
-      }
-
-      // TODO: 실제 이메일 전송 (현재는 콘솔에 출력)
-      // 실제 서비스에서는 Resend API나 다른 이메일 서비스 사용 필요
-      console.log(`[인증번호] ${email}: ${code}`);
-      
-      // 개발 환경에서는 토스트로 인증번호 표시 (나중에 제거)
-      if (import.meta.env.DEV) {
-        toast({
-          title: "인증번호 (개발용)",
-          description: `인증번호: ${code}`,
-          duration: 30000,
-        });
+      if (error) {
+        console.error("이메일 발송 오류:", error);
+        throw new Error(error.message || "이메일 발송 중 오류가 발생했습니다.");
       }
 
       setOtpSent(true);
       toast({
-        title: "인증번호 이메일 발송",
-        description: "이메일을 확인하세요. 인증번호를 입력하여 로그인하세요.",
+        title: "인증 이메일 발송 완료",
+        description: "이메일을 확인하세요. 인증번호를 입력하거나 매직링크를 클릭하여 로그인하세요.",
       });
     } catch (error: any) {
       console.error("인증번호 발송 오류:", error);
@@ -85,60 +145,32 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // DB에서 인증번호 확인
-      const { data: codeData, error: codeError } = await supabase
-        .from("verification_codes")
-        .select("*")
-        .eq("email", email)
-        .single();
+      // Supabase의 기본 OTP 검증 방식 사용
+      const {
+        data: { session, user },
+        error,
+      } = await supabase.auth.verifyOtp({
+        email: email,
+        token: otp,
+        type: 'email',
+      });
 
-      if (codeError || !codeData) {
-        throw new Error("인증번호를 찾을 수 없습니다.");
+      if (error) {
+        console.error("OTP 검증 오류:", error);
+        throw new Error(error.message || "인증번호가 올바르지 않습니다.");
       }
 
-      // 만료 여부 및 코드 일치 확인
-      const now = new Date();
-      const expiresAt = new Date(codeData.expires_at);
-
-      if (codeData.code !== otp) {
-        throw new Error("인증번호가 올바르지 않습니다.");
-      }
-
-      if (expiresAt <= now) {
-        throw new Error("인증번호가 만료되었습니다.");
-      }
-
-      // 인증번호 검증 성공
-      // 인증번호 삭제
-      await supabase
-        .from("verification_codes")
-        .delete()
-        .eq("email", email);
-
-      // 인증 완료 상태 저장
-      localStorage.setItem('verified_email', email);
-      localStorage.setItem('verified_at', new Date().toISOString());
-
-      // 인증번호 검증 완료 - 사용자 생성 및 로그인
-      // Supabase는 인증번호만으로 직접 로그인할 수 없으므로,
-      // 여기서는 인증번호 검증 완료만 처리하고,
-      // 실제 로그인은 사용자가 이미 세션이 있으면 그대로 사용
-      
-      // 기존 세션 확인
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        // 이미 로그인되어 있으면 성공
+      if (session && user) {
+        // 로그인 성공 - 세션 생성됨
         toast({
           title: "로그인 성공",
           description: "환영합니다!",
         });
+        
+        // 메인 페이지로 이동 (useEffect에서 자동으로 처리되지만 명시적으로 이동)
+        navigate("/main");
       } else {
-        // 세션이 없으면 인증 완료 안내
-        toast({
-          title: "인증번호 확인 완료",
-          description: "로그인을 완료하려면 이메일의 링크를 확인해주세요.",
-        });
+        throw new Error("세션을 생성할 수 없습니다.");
       }
     } catch (error: any) {
       console.error("인증번호 검증 오류:", error);
