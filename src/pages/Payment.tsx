@@ -1595,8 +1595,18 @@ const Payment = () => {
         return;
       }
 
-      // 데모 모드일 때는 간단한 처리
+      // 데모 모드일 때는 간단한 처리 (포인트 체크 포함)
       if (!isLoggedIn) {
+        // 포인트 한도 체크
+        const totalCostDemo = Array.from(selectedGifticons.values())
+          .reduce((sum, item) => sum + item.sale_price, 0);
+        const additionalCostDemo = gifticon.sale_price;
+
+        if (totalCostDemo + additionalCostDemo > userPoints) {
+          toast.error(`포인트가 부족합니다. 보유 포인트: ${userPoints.toLocaleString()}원`);
+          return;
+        }
+
         setSelectedGifticons(new Map(selectedGifticons).set(gifticon.id, {
           id: gifticon.id,
           sale_price: gifticon.sale_price,
@@ -2298,13 +2308,25 @@ const Payment = () => {
                           const discountAmount = gifticon.original_price - gifticon.sale_price;
                           const discountPercent = Math.round((discountAmount / gifticon.original_price) * 100);
                           
+                          // 포인트 체크: 선택되지 않은 기프티콘의 경우 총 비용 + 현재 기프티콘 비용이 포인트를 초과하면 선택 불가
+                          const canSelect = isSelected || (totalCost + gifticon.sale_price <= userPoints);
+                          const isDisabled = isLoading || !canSelect || (isAutoSelectMode && !isSelected);
+
                           return (
                             <div
                               key={gifticon.id}
-                              className={`p-4 rounded-xl transition-all cursor-pointer ${
-                                isSelected ? "bg-primary/10 border-2 border-primary" : "bg-muted/50 border border-transparent hover:border-border"
+                              className={`p-4 rounded-xl transition-all ${
+                                isDisabled && !isSelected
+                                  ? "bg-muted/30 border border-transparent opacity-60 cursor-not-allowed"
+                                  : isSelected
+                                  ? "bg-primary/10 border-2 border-primary cursor-pointer"
+                                  : "bg-muted/50 border border-transparent hover:border-border cursor-pointer"
                               }`}
-                              onClick={() => handleToggle(gifticon)}
+                              onClick={() => {
+                                if (!isDisabled) {
+                                  handleToggle(gifticon);
+                                }
+                              }}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
@@ -2324,7 +2346,7 @@ const Payment = () => {
                                 <div className="flex items-center">
                                   <Checkbox
                                     checked={isSelected}
-                                    disabled={isLoading || (!isSelected && totalCost + gifticon.sale_price > userPoints) || (isAutoSelectMode && !isSelected)}
+                                    disabled={isDisabled}
                                     className="w-5 h-5"
                                   />
                                 </div>
