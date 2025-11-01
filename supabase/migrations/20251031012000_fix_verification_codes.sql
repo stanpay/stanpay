@@ -46,3 +46,4 @@ GRANT ALL ON public.verification_codes TO anon, authenticated;
 NOTIFY pgrst, 'reload schema';
 
 
+
