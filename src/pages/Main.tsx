@@ -807,22 +807,70 @@ const Main = () => {
               // 지역화폐 할인율
               localCurrencyDiscount = (storeData as any).local_currency_discount_rate || 0;
 
-              // 기프티콘 할인율 조회
+              // 기프티콘 할인율 조회 (추천 기프티콘 로직과 동일: 천원대별로 하나씩, 할인효율 순)
               if ((storeData as any).gifticon_available) {
                 try {
+                  // 천원대별로 그룹화하는 헬퍼 함수
+                  const getPriceRange = (price: number): number => {
+                    return Math.floor(price / 1000) * 1000;
+                  };
+
+                  // 할인효율 계산 함수: (원가-할인가)/할인가
+                  const getDiscountEfficiency = (originalPrice: number, salePrice: number): number => {
+                    if (salePrice === 0) return 0;
+                    return (originalPrice - salePrice) / salePrice;
+                  };
+
+                  // 정렬 함수 (마감일 임박순 최우선, 그 다음 할인효율 내림차순, 같은 효율일 땐 판매가 오름차순)
+                  const sortByDiscountEfficiency = (a: any, b: any): number => {
+                    // 1순위: 마감일 임박순 (expiry_date 오름차순)
+                    const expiryA = new Date(a.expiry_date).getTime();
+                    const expiryB = new Date(b.expiry_date).getTime();
+                    if (expiryA !== expiryB) {
+                      return expiryA - expiryB; // 마감일 임박순 (오름차순)
+                    }
+                    
+                    // 2순위: 할인효율 내림차순
+                    const efficiencyA = getDiscountEfficiency(a.original_price, a.sale_price);
+                    const efficiencyB = getDiscountEfficiency(b.original_price, b.sale_price);
+                    if (efficiencyA !== efficiencyB) {
+                      return efficiencyB - efficiencyA; // 할인효율 내림차순
+                    }
+                    
+                    // 3순위: 같은 효율일 경우 판매가 오름차순
+                    return a.sale_price - b.sale_price;
+                  };
+
+                  // 모든 판매중 기프티콘 조회
                   const { data: gifticonsData, error: gifticonsError } = await supabase
                     .from('used_gifticons' as any)
-                    .select('original_price, sale_price')
+                    .select('original_price, sale_price, expiry_date')
                     .eq('available_at', brandName)
-                    .eq('status', '판매중')
-                    .limit(10);
+                    .eq('status', '판매중');
 
                   if (!gifticonsError && gifticonsData && gifticonsData.length > 0) {
-                    const discounts = gifticonsData.map((g: any) => {
-                      const discountAmount = g.original_price - g.sale_price;
-                      return Math.round((discountAmount / g.original_price) * 100);
+                    // 할인효율 기준으로 정렬
+                    const sortedData = [...gifticonsData].sort(sortByDiscountEfficiency);
+
+                    // 천원대별로 그룹화하면서 할인효율이 높은 순으로 이미 정렬된 데이터를 사용
+                    const groupedByThousand = new Map<number, any>();
+                    sortedData.forEach((item) => {
+                      const priceRange = getPriceRange(item.original_price);
+                      // 같은 천원대에 아직 항목이 없으면 추가 (이미 할인효율 순으로 정렬되어 있으므로 첫 번째가 최고 효율)
+                      if (!groupedByThousand.has(priceRange)) {
+                        groupedByThousand.set(priceRange, item);
+                      }
                     });
-                    maxGifticonDiscount = Math.max(...discounts);
+
+                    // 그룹화된 항목들의 할인율 계산 (추천 기프티콘에서 처음 가져오는 기프티콘들)
+                    const selectedGifticons = Array.from(groupedByThousand.values());
+                    if (selectedGifticons.length > 0) {
+                      const discounts = selectedGifticons.map((g: any) => {
+                        const discountAmount = g.original_price - g.sale_price;
+                        return Math.round((discountAmount / g.original_price) * 100);
+                      });
+                      maxGifticonDiscount = Math.max(...discounts);
+                    }
                   }
                 } catch (e) {
                   console.log(`⚠️ [할인 정보] ${store.name}: 기프티콘 정보 조회 실패`);
@@ -1005,22 +1053,70 @@ const Main = () => {
                 // 지역화폐 할인율
                 localCurrencyDiscount = (storeData as any).local_currency_discount_rate || 0;
 
-                // 기프티콘 할인율 조회
+                // 기프티콘 할인율 조회 (추천 기프티콘 로직과 동일: 천원대별로 하나씩, 할인효율 순)
                 if ((storeData as any).gifticon_available) {
                   try {
+                    // 천원대별로 그룹화하는 헬퍼 함수
+                    const getPriceRange = (price: number): number => {
+                      return Math.floor(price / 1000) * 1000;
+                    };
+
+                    // 할인효율 계산 함수: (원가-할인가)/할인가
+                    const getDiscountEfficiency = (originalPrice: number, salePrice: number): number => {
+                      if (salePrice === 0) return 0;
+                      return (originalPrice - salePrice) / salePrice;
+                    };
+
+                    // 정렬 함수 (마감일 임박순 최우선, 그 다음 할인효율 내림차순, 같은 효율일 땐 판매가 오름차순)
+                    const sortByDiscountEfficiency = (a: any, b: any): number => {
+                      // 1순위: 마감일 임박순 (expiry_date 오름차순)
+                      const expiryA = new Date(a.expiry_date).getTime();
+                      const expiryB = new Date(b.expiry_date).getTime();
+                      if (expiryA !== expiryB) {
+                        return expiryA - expiryB; // 마감일 임박순 (오름차순)
+                      }
+                      
+                      // 2순위: 할인효율 내림차순
+                      const efficiencyA = getDiscountEfficiency(a.original_price, a.sale_price);
+                      const efficiencyB = getDiscountEfficiency(b.original_price, b.sale_price);
+                      if (efficiencyA !== efficiencyB) {
+                        return efficiencyB - efficiencyA; // 할인효율 내림차순
+                      }
+                      
+                      // 3순위: 같은 효율일 경우 판매가 오름차순
+                      return a.sale_price - b.sale_price;
+                    };
+
+                    // 모든 판매중 기프티콘 조회
                     const { data: gifticonsData, error: gifticonsError } = await supabase
                       .from('used_gifticons' as any)
-                      .select('original_price, sale_price')
+                      .select('original_price, sale_price, expiry_date')
                       .eq('available_at', brandName)
-                      .eq('status', '판매중')
-                      .limit(10);
+                      .eq('status', '판매중');
 
                     if (!gifticonsError && gifticonsData && gifticonsData.length > 0) {
-                      const discounts = gifticonsData.map((g: any) => {
-                        const discountAmount = g.original_price - g.sale_price;
-                        return Math.round((discountAmount / g.original_price) * 100);
+                      // 할인효율 기준으로 정렬
+                      const sortedData = [...gifticonsData].sort(sortByDiscountEfficiency);
+
+                      // 천원대별로 그룹화하면서 할인효율이 높은 순으로 이미 정렬된 데이터를 사용
+                      const groupedByThousand = new Map<number, any>();
+                      sortedData.forEach((item) => {
+                        const priceRange = getPriceRange(item.original_price);
+                        // 같은 천원대에 아직 항목이 없으면 추가 (이미 할인효율 순으로 정렬되어 있으므로 첫 번째가 최고 효율)
+                        if (!groupedByThousand.has(priceRange)) {
+                          groupedByThousand.set(priceRange, item);
+                        }
                       });
-                      maxGifticonDiscount = Math.max(...discounts);
+
+                      // 그룹화된 항목들의 할인율 계산 (추천 기프티콘에서 처음 가져오는 기프티콘들)
+                      const selectedGifticons = Array.from(groupedByThousand.values());
+                      if (selectedGifticons.length > 0) {
+                        const discounts = selectedGifticons.map((g: any) => {
+                          const discountAmount = g.original_price - g.sale_price;
+                          return Math.round((discountAmount / g.original_price) * 100);
+                        });
+                        maxGifticonDiscount = Math.max(...discounts);
+                      }
                     }
                   } catch (e) {
                     console.log(`⚠️ [할인 정보] ${store.name}: 기프티콘 정보 조회 실패`);
