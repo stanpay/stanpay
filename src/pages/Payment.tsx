@@ -950,9 +950,14 @@ const Payment = () => {
     }
   };
 
-  // 총 선택한 포인트 계산
+  // 총 선택한 포인트 계산 (결제 완료된 기프티콘 제외)
   const totalCost = Array.from(selectedGifticons.values())
-    .reduce((sum, item) => sum + (item.count * item.sale_price), 0);
+    .reduce((sum, item) => {
+      // 이미 결제 완료된 기프티콘은 제외
+      const completedCount = item.reservedIds.filter(id => completedPurchases.has(id)).length;
+      const additionalCount = item.count - completedCount;
+      return sum + (item.sale_price * additionalCount);
+    }, 0);
 
   // 총 기프티콘 금액권 계산 (original_price 합계)
   const totalOriginalPrice = Array.from(selectedGifticons.values())
@@ -976,8 +981,9 @@ const Payment = () => {
     }, 0);
 
   const handlePayment = async () => {
+    // 선택한 기프티콘이 없으면 바로 Step 2로 이동
     if (selectedGifticons.size === 0) {
-      toast.error("선택한 기프티콘이 없습니다.");
+      setStep(2);
       return;
     }
 
@@ -1096,9 +1102,21 @@ const Payment = () => {
     }
   };
 
+  // 결제 완료 처리 (상태 초기화 및 메인으로 이동)
+  const handlePaymentComplete = () => {
+    setSelectedGifticons(new Map());
+    setCompletedPurchases(new Set());
+    navigate('/main');
+  };
+
   const handleConfirmStep1 = () => {
     // 결제 처리
     handlePayment();
+  };
+
+  // Step 2에서 뒤로가기 클릭 시 처리
+  const handleBackFromStep2 = () => {
+    setStep(1);
   };
 
   // 2단계에서 보여줄 총 카드 수 (기프티콘 + 멤버십)
@@ -1566,7 +1584,7 @@ const Payment = () => {
                 variant="ghost" 
                 size="icon" 
                 className="rounded-full"
-                onClick={() => setStep(1)}
+                onClick={handleBackFromStep2}
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
@@ -1699,26 +1717,19 @@ const Payment = () => {
             </div>
 
             <div className="absolute bottom-4 left-4 right-4 space-y-3">
-              {completedPurchases.size > 0 ? (
-                <Button
-                  onClick={() => {
-                    setSelectedGifticons(new Map());
-                    setCompletedPurchases(new Set());
-                    navigate('/main');
-                  }}
-                  className="w-full h-14 text-lg font-semibold rounded-xl"
-                >
-                  결제 완료
-                </Button>
-              ) : (
-                <Button
-                  onClick={handlePayment}
-                  className="w-full h-14 text-lg font-semibold rounded-xl"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "처리 중..." : "결제수단 선택"}
-                </Button>
-              )}
+              <Button
+                onClick={handlePaymentComplete}
+                className="w-full h-14 text-lg font-semibold rounded-xl"
+              >
+                결제 완료
+              </Button>
+              <Button
+                onClick={handlePayment}
+                className="w-full h-14 text-lg font-semibold rounded-xl"
+                disabled={isLoading}
+              >
+                {isLoading ? "처리 중..." : "결제하기"}
+              </Button>
             </div>
           </>
         )}
