@@ -1452,6 +1452,14 @@ const Payment = () => {
     handlePayment();
   };
 
+  // Step 2에서 결제하기 버튼 클릭 시 네이버페이 앱 실행
+  const handlePayWithNaverPay = () => {
+    // 안드로이드 전용 - 네이버페이 앱 패키지명
+    if (window.location) {
+      window.location.href = "intent://launch#Intent;package=com.naverfin.payapp;end;";
+    }
+  };
+
   // Step 2에서 뒤로가기 클릭 시 처리
   const handleBackFromStep2 = () => {
     setStep(1);
@@ -1851,7 +1859,6 @@ const Payment = () => {
                             <div className="flex items-center">
                               <Checkbox
                                 checked={isSelected}
-                                onCheckedChange={() => handleToggle(gifticon)}
                                 disabled={isLoading || (!isSelected && totalCost + gifticon.sale_price > userPoints)}
                                 className="w-5 h-5"
                               />
@@ -2057,7 +2064,7 @@ const Payment = () => {
 
             <div className="absolute bottom-4 left-4 right-4 space-y-3">
               <Button
-                onClick={handlePayment}
+                onClick={handlePayWithNaverPay}
                 className="w-full h-14 text-lg font-semibold rounded-xl"
                 disabled={isLoading}
               >
