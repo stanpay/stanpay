@@ -1037,29 +1037,57 @@ const Payment = () => {
       if (!session?.user) return;
 
       try {
-        // 추가로 불러온 기프티콘 찾기 (이 기프티콘을 원본으로 하는 추가 기프티콘들)
-        const addedGifticonIds: string[] = [];
-        addedGifticonRelations.forEach((parentId, addedId) => {
-          if (parentId === gifticon.id) {
-            addedGifticonIds.push(addedId);
+        // 이 기프티콘이 추가로 불러온 기프티콘인지 확인
+        const parentId = addedGifticonRelations.get(gifticon.id);
+        const isAddedGifticon = parentId !== undefined;
+
+        let gifticonsToRemove: string[] = [];
+        let gifticonIdsToRelease: string[] = [];
+
+        if (isAddedGifticon) {
+          // 추가로 불러온 기프티콘을 선택 해제하는 경우
+          // 원본 기프티콘이 선택되어 있는지 확인 (선택 해제 직전 상태 확인)
+          const parentGifticon = gifticons.find(g => g.id === parentId);
+          if (!parentGifticon) {
+            // 원본 기프티콘을 찾을 수 없으면 제거
+            gifticonsToRemove.push(gifticon.id);
+            gifticonIdsToRelease.push(currentSelected.reservedId);
+          } else {
+            // 원본 기프티콘이 선택되어 있는지 확인 (이번에 선택 해제하는 기프티콘 제외)
+            const parentReservedId = parentGifticon.id;
+            const isParentSelected = Array.from(selectedGifticons.values())
+              .some(selected => selected.reservedId === parentReservedId);
+
+            if (!isParentSelected) {
+              // 원본 기프티콘이 선택되지 않았으면 추가로 불러온 기프티콘을 화면에서 제거하고 판매중으로 복구
+              gifticonsToRemove.push(gifticon.id);
+              gifticonIdsToRelease.push(currentSelected.reservedId);
+            }
+            // 원본 기프티콘이 선택되어 있으면 추가로 불러온 기프티콘은 대기중 상태 유지 (화면에도 유지)
           }
-        });
+        } else {
+          // 원본 기프티콘을 선택 해제하는 경우
+          // 추가로 불러온 기프티콘 찾기 (이 기프티콘을 원본으로 하는 추가 기프티콘들)
+          const addedGifticonIds: string[] = [];
+          addedGifticonRelations.forEach((pId, addedId) => {
+            if (pId === gifticon.id) {
+              addedGifticonIds.push(addedId);
+            }
+          });
 
-        // 화면에서 제거할 기프티콘 찾기 (선택되지 않은 추가 기프티콘들만)
-        const gifticonsToRemove: string[] = [];
-        const gifticonIdsToRelease: string[] = []; // 원본 기프티콘은 화면에 남아있으므로 DB 상태 변경 없음
+          // 화면에서 제거할 기프티콘 찾기 (선택되지 않은 추가 기프티콘들만)
+          for (const addedId of addedGifticonIds) {
+            // 추가로 불러온 기프티콘이 선택되어 있는지 확인
+            const isAddedGifticonSelected = Array.from(selectedGifticons.values())
+              .some(selected => selected.reservedId === addedId);
 
-        for (const addedId of addedGifticonIds) {
-          // 추가로 불러온 기프티콘이 선택되어 있는지 확인
-          const isAddedGifticonSelected = Array.from(selectedGifticons.values())
-            .some(selected => selected.reservedId === addedId);
-
-          if (!isAddedGifticonSelected) {
-            // 선택되지 않은 추가 기프티콘은 화면에서 제거하고 판매중으로 복구
-            gifticonsToRemove.push(addedId);
-            gifticonIdsToRelease.push(addedId);
+            if (!isAddedGifticonSelected) {
+              // 선택되지 않은 추가 기프티콘은 화면에서 제거하고 판매중으로 복구
+              gifticonsToRemove.push(addedId);
+              gifticonIdsToRelease.push(addedId);
+            }
+            // 선택된 추가 기프티콘은 화면에 남아있으므로 대기중 상태 유지 (DB 업데이트 불필요)
           }
-          // 선택된 추가 기프티콘은 화면에 남아있으므로 대기중 상태 유지 (DB 업데이트 불필요)
         }
 
         // 화면에서 제거될 추가 기프티콘만 판매중으로 복구
@@ -1107,11 +1135,20 @@ const Payment = () => {
         });
 
         // 관계 맵에서 제거 (제거된 추가 기프티콘들의 관계)
-        setAddedGifticonRelations(prev => {
-          const newMap = new Map(prev);
-          gifticonsToRemove.forEach(id => newMap.delete(id));
-          return newMap;
-        });
+        // 추가로 불러온 기프티콘을 선택 해제한 경우도 관계 맵에서 제거
+        if (isAddedGifticon && gifticonsToRemove.includes(gifticon.id)) {
+          setAddedGifticonRelations(prev => {
+            const newMap = new Map(prev);
+            newMap.delete(gifticon.id);
+            return newMap;
+          });
+        } else {
+          setAddedGifticonRelations(prev => {
+            const newMap = new Map(prev);
+            gifticonsToRemove.forEach(id => newMap.delete(id));
+            return newMap;
+          });
+        }
 
         // 선택 상태에서 제거
         const newMap = new Map(selectedGifticons);
@@ -1411,26 +1448,54 @@ const Payment = () => {
 
           // EAN-13 형식인지 확인 (13자리)
           if (barcodeNumber.length === 13) {
-            JsBarcode(svgRef.current, barcodeNumber, {
-              format: "EAN13",
-              width: 2,
-              height: 80,
-              displayValue: false,
-              background: "transparent",
-              lineColor: "#000000",
-              margin: 0,
-            });
+            try {
+              JsBarcode(svgRef.current, barcodeNumber, {
+                format: "EAN13",
+                width: 2,
+                height: 80,
+                displayValue: false,
+                background: "transparent",
+                lineColor: "#000000",
+                margin: 0,
+              });
+            } catch (ean13Error) {
+              // EAN-13 체크섬 오류 시 CODE128로 대체
+              console.warn("EAN13 체크섬 오류, CODE128로 변경:", ean13Error);
+              JsBarcode(svgRef.current, barcodeNumber, {
+                format: "CODE128",
+                width: 2,
+                height: 80,
+                displayValue: false,
+                background: "transparent",
+                lineColor: "#000000",
+                margin: 0,
+              });
+            }
           } else if (barcodeNumber.length === 8) {
             // EAN-8 형식 (8자리)
-            JsBarcode(svgRef.current, barcodeNumber, {
-              format: "EAN8",
-              width: 2,
-              height: 80,
-              displayValue: false,
-              background: "transparent",
-              lineColor: "#000000",
-              margin: 0,
-            });
+            try {
+              JsBarcode(svgRef.current, barcodeNumber, {
+                format: "EAN8",
+                width: 2,
+                height: 80,
+                displayValue: false,
+                background: "transparent",
+                lineColor: "#000000",
+                margin: 0,
+              });
+            } catch (ean8Error) {
+              // EAN-8 체크섬 오류 시 CODE128로 대체
+              console.warn("EAN8 체크섬 오류, CODE128로 변경:", ean8Error);
+              JsBarcode(svgRef.current, barcodeNumber, {
+                format: "CODE128",
+                width: 2,
+                height: 80,
+                displayValue: false,
+                background: "transparent",
+                lineColor: "#000000",
+                margin: 0,
+              });
+            }
           } else {
             // CODE128 형식 (다양한 길이 지원)
             JsBarcode(svgRef.current, barcodeNumber, {
