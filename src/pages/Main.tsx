@@ -686,15 +686,8 @@ const Main = () => {
       console.log("🔄 [할인 정보 조회] 시작");
       const storesWithDiscount = await Promise.all(allStores.map(async (store) => {
         try {
-          // kakao_place_id로 stores 테이블에서 매장 정보 조회
-          const { data: storeData, error: storeError } = await supabase
-            .from('stores' as any)
-            .select('local_currency_discount_rate, gifticon_available, franchise_id')
-            .eq('kakao_place_id', store.id)
-            .single();
-
-          if (storeError || !storeData) {
-            console.log(`⚠️ [할인 정보] ${store.name} (${store.id}): 매장 정보 없음`);
+          // 파스쿠찌와 투썸플레이스만 할인율 조회
+          if (store.image !== 'pascucci' && store.image !== 'twosome') {
             return {
               ...store,
               maxDiscount: null,
@@ -703,57 +696,145 @@ const Main = () => {
             };
           }
 
-          // 지역화폐 할인율
-          const localCurrencyDiscount = (storeData as any).local_currency_discount_rate || 0;
+          // 파스쿠찌와 투썸플레이스 할인 정보 조회
+          // 1. 프랜차이즈 정보 조회
+          const brandNameMap: Record<string, string> = {
+            starbucks: "스타벅스",
+            baskin: "베스킨라빈스",
+            mega: "메가커피",
+            pascucci: "파스쿠찌",
+            twosome: "투썸플레이스",
+            compose: "컴포즈커피",
+            ediya: "이디야",
+            paik: "빽다방",
+          };
+          const brandName = brandNameMap[store.image] || store.image;
 
-          // 기프티콘 할인율 조회 (해당 브랜드의 사용 가능한 기프티콘 중 최대 할인율)
-          let maxGifticonDiscount = 0;
-          if ((storeData as any).gifticon_available) {
-            // 브랜드명 매핑 (image 값을 브랜드명으로 변환)
-            const brandNameMap: Record<string, string> = {
-              starbucks: "스타벅스",
-              baskin: "베스킨라빈스",
-              mega: "메가커피",
-              pascucci: "파스쿠찌",
-              twosome: "투썸플레이스",
-              compose: "컴포즈커피",
-              ediya: "이디야",
-              paik: "빽다방",
-            };
-            const brandName = brandNameMap[store.image] || store.image;
+          // 프랜차이즈 정보 조회
+          let franchiseData: any = null;
+          try {
+            const { data: franchise, error: franchiseError } = await supabase
+              .from('franchises' as any)
+              .select('id')
+              .eq('name', brandName)
+              .single();
+            
+            if (!franchiseError && franchise) {
+              franchiseData = franchise;
+            }
+          } catch (e) {
+            console.log(`⚠️ [할인 정보] ${store.name}: 프랜차이즈 정보 조회 실패`);
+          }
 
-            // 해당 브랜드의 사용 가능한 기프티콘 조회
-            const { data: gifticonsData, error: gifticonsError } = await supabase
-              .from('used_gifticons' as any)
-              .select('original_price, sale_price')
-              .eq('available_at', brandName)
-              .eq('status', '판매중')
-              .limit(10);
+          // 2. 프랜차이즈별 결제 방식 적립/할인 정보 조회
+          let franchiseDiscountRate = 0;
+          if (franchiseData) {
+            try {
+              const { data: paymentMethods, error: paymentMethodsError } = await supabase
+                .from('franchise_payment_methods' as any)
+                .select('method_name, method_type, rate')
+                .eq('franchise_id', franchiseData.id);
 
-            if (!gifticonsError && gifticonsData && gifticonsData.length > 0) {
-              // 최대 할인율 계산
-              const discounts = gifticonsData.map((g: any) => {
-                const discountAmount = g.original_price - g.sale_price;
-                return Math.round((discountAmount / g.original_price) * 100);
-              });
-              maxGifticonDiscount = Math.max(...discounts);
+              if (!paymentMethodsError && paymentMethods && paymentMethods.length > 0) {
+                // 파스쿠찌: 해피포인트 적립 (5%)
+                if (store.image === 'pascucci') {
+                  const happyPoint = paymentMethods.find((pm: any) => 
+                    pm.method_name === '해피포인트' && (pm.method_type === '적립' || pm.method_type === 'accumulation')
+                  );
+                  if (happyPoint && (happyPoint as any).rate) {
+                    franchiseDiscountRate = (happyPoint as any).rate;
+                  }
+                }
+                // 투썸플레이스: 투썸하트는 스탬프 타입이므로 할인율에 포함하지 않음 (할인율 없음)
+                // 투썸플레이스는 지역화폐 할인율과 기프티콘 할인율만 고려
+              }
+            } catch (e) {
+              console.log(`⚠️ [할인 정보] ${store.name}: 프랜차이즈 결제 방식 정보 조회 실패`);
             }
           }
 
-          // 파스쿠찌가 아닌 경우 할인율 표시하지 않음
-          if (store.image !== 'pascucci') {
-            return {
-              ...store,
-              maxDiscount: null,
-              discountNum: 0,
-              maxDiscountPercent: null,
-            };
+          // 3. 매장 정보 조회 (kakao_place_id로, 실패 시 무시)
+          let localCurrencyDiscount = 0;
+          let maxGifticonDiscount = 0;
+          
+          try {
+            // storeId가 숫자인지 확인 (카카오 플레이스 ID)
+            const isNumeric = /^\d+$/.test(store.id);
+            let storeData: any = null;
+            let storeError: any = null;
+
+            if (isNumeric && franchiseData) {
+              // kakao_place_id로 조회 시도
+              const { data, error } = await supabase
+                .from('stores' as any)
+                .select('local_currency_discount_rate, gifticon_available')
+                .eq('kakao_place_id', store.id)
+                .single();
+              
+              storeData = data;
+              storeError = error;
+            }
+
+            // kakao_place_id 조회 실패 시 franchise_id로 조회 시도
+            if (storeError && franchiseData) {
+              const { data, error } = await supabase
+                .from('stores' as any)
+                .select('local_currency_discount_rate, gifticon_available')
+                .eq('franchise_id', franchiseData.id)
+                .limit(1)
+                .single();
+              
+              if (!error && data) {
+                storeData = data;
+              }
+            }
+
+            if (storeData) {
+              // 지역화폐 할인율
+              localCurrencyDiscount = (storeData as any).local_currency_discount_rate || 0;
+
+              // 기프티콘 할인율 조회
+              if ((storeData as any).gifticon_available) {
+                try {
+                  const { data: gifticonsData, error: gifticonsError } = await supabase
+                    .from('used_gifticons' as any)
+                    .select('original_price, sale_price')
+                    .eq('available_at', brandName)
+                    .eq('status', '판매중')
+                    .limit(10);
+
+                  if (!gifticonsError && gifticonsData && gifticonsData.length > 0) {
+                    const discounts = gifticonsData.map((g: any) => {
+                      const discountAmount = g.original_price - g.sale_price;
+                      return Math.round((discountAmount / g.original_price) * 100);
+                    });
+                    maxGifticonDiscount = Math.max(...discounts);
+                  }
+                } catch (e) {
+                  console.log(`⚠️ [할인 정보] ${store.name}: 기프티콘 정보 조회 실패`);
+                }
+              }
+            }
+          } catch (e) {
+            console.log(`⚠️ [할인 정보] ${store.name}: 매장 정보 조회 실패`);
           }
 
-          // 파스쿠찌만 할인율 계산 (지역화폐 할인율과 기프티콘 할인율 중 최대값)
-          const maxDiscountPercent = Math.max(localCurrencyDiscount, maxGifticonDiscount);
+          // 4. 최대 할인율 계산 (프랜차이즈 적립/할인, 지역화폐 할인율, 기프티콘 할인율 중 최대값)
+          const maxDiscountPercent = Math.max(franchiseDiscountRate, localCurrencyDiscount, maxGifticonDiscount);
           
-          console.log(`✅ [할인 정보] ${store.name} (${store.id}): 최대 ${maxDiscountPercent}% 할인 (지역화폐: ${localCurrencyDiscount}%, 기프티콘: ${maxGifticonDiscount}%)`);
+          if (maxDiscountPercent > 0) {
+            const discountDetails = [];
+            if (franchiseDiscountRate > 0) {
+              discountDetails.push(`프랜차이즈: ${franchiseDiscountRate}%`);
+            }
+            if (localCurrencyDiscount > 0) {
+              discountDetails.push(`지역화폐: ${localCurrencyDiscount}%`);
+            }
+            if (maxGifticonDiscount > 0) {
+              discountDetails.push(`기프티콘: ${maxGifticonDiscount}%`);
+            }
+            console.log(`✅ [할인 정보] ${store.name} (${store.id}): 최대 ${maxDiscountPercent}% 할인 (${discountDetails.join(', ')})`);
+          }
 
           return {
             ...store,
