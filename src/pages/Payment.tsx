@@ -37,6 +37,8 @@ const Payment = () => {
   // 각 기프티콘의 불러온 순서 추적 (key: 기프티콘 ID, value: 불러온 순서)
   const [gifticonLoadOrder, setGifticonLoadOrder] = useState<Map<string, number>>(new Map());
   let loadOrderCounter = useRef(0);
+  // 추가 로드 중인 기프티콘 ID 추적 (중복 호출 방지)
+  const loadingGifticonIds = useRef<Set<string>>(new Set());
   const [userPoints, setUserPoints] = useState<number>(0);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -833,9 +835,20 @@ const Payment = () => {
   const loadSimilarPriceGifticons = async (selectedGifticon: UsedGifticon) => {
     if (!isLoggedIn || !storeBrand) return;
 
+    // 이미 이 기프티콘에 대한 추가 로드가 진행 중이면 중복 방지
+    if (loadingGifticonIds.current.has(selectedGifticon.id)) {
+      console.log(`[기프티콘 추가 로드] 이미 진행 중입니다: id=${selectedGifticon.id}`);
+      return;
+    }
+
     try {
+      loadingGifticonIds.current.add(selectedGifticon.id);
+
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return;
+      if (!session?.user) {
+        loadingGifticonIds.current.delete(selectedGifticon.id);
+        return;
+      }
 
       // 선택한 기프티콘의 original_price 기준으로 천원대 계산
       const selectedPriceRange = getPriceRange(selectedGifticon.original_price);
@@ -843,7 +856,9 @@ const Payment = () => {
       console.log(`[기프티콘 추가 로드] 선택한 기프티콘: original_price=${selectedGifticon.original_price}, sale_price=${selectedGifticon.sale_price}, 천원대=${selectedPriceRange}`);
       
       // 현재 이미 불러온 기프티콘의 ID 목록 (중복 방지용)
-      const existingGifticonIds = new Set(gifticons.map(g => g.id));
+      // 상태가 업데이트되기 전이므로 최신 상태를 확인하기 위해 getState 패턴 사용
+      const existingGifticonIds = new Set<string>();
+      gifticons.forEach(g => existingGifticonIds.add(g.id));
       
       // 같은 천원대의 새로운 기프티콘 조회 (original_price 기준)
       const priceMin = selectedPriceRange;
@@ -866,6 +881,7 @@ const Payment = () => {
 
       if (!similarData || similarData.length === 0) {
         console.log(`[기프티콘 추가 로드] 같은 천원대(${selectedPriceRange}원)의 판매중인 기프티콘이 없습니다.`);
+        loadingGifticonIds.current.delete(selectedGifticon.id);
         return;
       }
 
@@ -878,6 +894,7 @@ const Payment = () => {
 
       if (newData.length === 0) {
         console.log(`[기프티콘 추가 로드] 같은 천원대(${selectedPriceRange}원)의 새로운 기프티콘이 없습니다.`);
+        loadingGifticonIds.current.delete(selectedGifticon.id);
         return;
       }
 
@@ -905,6 +922,7 @@ const Payment = () => {
 
       if (reserveError) {
         console.error("[기프티콘 추가 로드] 예약 오류:", reserveError);
+        loadingGifticonIds.current.delete(selectedGifticon.id);
         return;
       }
 
@@ -927,8 +945,15 @@ const Payment = () => {
         return newMap;
       });
 
-      // 기존 기프티콘 목록에 추가
+      // 기존 기프티콘 목록에 추가 (중복 체크)
       setGifticons(prev => {
+        // 이미 존재하는 기프티콘인지 확인
+        const alreadyExists = prev.some(g => g.id === selectedGifticonToAdd.id);
+        if (alreadyExists) {
+          console.log(`[기프티콘 추가 로드] 이미 존재하는 기프티콘입니다: id=${selectedGifticonToAdd.id}`);
+          return prev; // 이미 있으면 추가하지 않음
+        }
+
         const combined = [...prev, selectedGifticonToAdd];
 
         // 정렬: 1. 가격대별, 2. 같은 가격대일 경우 불러온 순서대로
@@ -948,8 +973,10 @@ const Payment = () => {
       });
 
       console.log(`[기프티콘 추가 로드] 성공: ${selectedGifticonToAdd.original_price}원 기프티콘 추가됨`);
+      loadingGifticonIds.current.delete(selectedGifticon.id);
     } catch (error: any) {
       console.error("[기프티콘 추가 로드] 전체 오류:", error);
+      loadingGifticonIds.current.delete(selectedGifticon.id);
     }
   };
 
