@@ -33,17 +33,74 @@ const Main = () => {
   const [isLoadingStores, setIsLoadingStores] = useState(true);
   const [currentCoords, setCurrentCoords] = useState<{latitude: number, longitude: number} | null>(null);
 
+  // 더미 기프티콘 데이터 (브랜드별)
+  const dummyGifticonsByBrand: Record<string, Array<{ original_price: number; sale_price: number }>> = {
+    starbucks: [
+      { original_price: 4500, sale_price: 3600 }, // 20% 할인
+      { original_price: 5000, sale_price: 4250 }, // 15% 할인
+    ],
+    baskin: [
+      { original_price: 3500, sale_price: 2800 }, // 20% 할인
+      { original_price: 4000, sale_price: 3400 }, // 15% 할인
+    ],
+    mega: [
+      { original_price: 3000, sale_price: 2400 }, // 20% 할인
+      { original_price: 3500, sale_price: 2975 }, // 15% 할인
+    ],
+    pascucci: [
+      { original_price: 5000, sale_price: 4000 }, // 20% 할인
+      { original_price: 5500, sale_price: 4675 }, // 15% 할인
+    ],
+    twosome: [
+      { original_price: 4000, sale_price: 3200 }, // 20% 할인
+      { original_price: 4500, sale_price: 3825 }, // 15% 할인
+    ],
+  };
+
+  // 더미 데이터에서 할인율 계산 함수
+  const calculateDummyDiscount = (store: StoreData): { maxDiscount: string | null; discountNum: number; maxDiscountPercent: number | null } => {
+    // 파스쿠찌가 아닌 경우 할인율 표시하지 않음
+    if (store.image !== 'pascucci') {
+      return {
+        maxDiscount: null,
+        discountNum: 0,
+        maxDiscountPercent: null,
+      };
+    }
+
+    // 파스쿠찌만 할인율 계산
+    // 지역화폐 할인율 (더미 데이터용)
+    const localCurrencyDiscount = 13; // 파스쿠찌 삼성점은 13% 지역화폐 할인
+
+    // 기프티콘 할인율 계산
+    let maxGifticonDiscount = 0;
+    const gifticons = dummyGifticonsByBrand[store.image] || [];
+    if (gifticons.length > 0) {
+      const discounts = gifticons.map(g => {
+        const discountAmount = g.original_price - g.sale_price;
+        return Math.round((discountAmount / g.original_price) * 100);
+      });
+      maxGifticonDiscount = Math.max(...discounts);
+    }
+
+    // 최대 할인율 계산
+    const maxDiscountPercent = Math.max(localCurrencyDiscount, maxGifticonDiscount);
+
+    return {
+      maxDiscount: maxDiscountPercent > 0 ? `최대 ${maxDiscountPercent}% 할인` : null,
+      discountNum: maxDiscountPercent,
+      maxDiscountPercent: maxDiscountPercent > 0 ? maxDiscountPercent : null,
+    };
+  };
+
   // 더미 데이터
-  const dummyStores: StoreData[] = [
+  const dummyStoresRaw: Omit<StoreData, 'maxDiscount' | 'discountNum' | 'maxDiscountPercent'>[] = [
     {
       id: "dummy-1",
       name: "스타벅스 강남역점",
       distance: "350m",
       distanceNum: 350,
       image: "starbucks",
-      maxDiscount: null,
-      discountNum: 0,
-      maxDiscountPercent: null,
       address: "서울 강남구 강남대로 지하 396"
     },
     {
@@ -52,9 +109,6 @@ const Main = () => {
       distance: "520m",
       distanceNum: 520,
       image: "baskin",
-      maxDiscount: null,
-      discountNum: 0,
-      maxDiscountPercent: null,
       address: "서울 강남구 역삼동 735-3"
     },
     {
@@ -63,9 +117,6 @@ const Main = () => {
       distance: "280m",
       distanceNum: 280,
       image: "mega",
-      maxDiscount: null,
-      discountNum: 0,
-      maxDiscountPercent: null,
       address: "서울 강남구 테헤란로 123"
     },
     {
@@ -74,9 +125,6 @@ const Main = () => {
       distance: "450m",
       distanceNum: 450,
       image: "pascucci",
-      maxDiscount: null,
-      discountNum: 0,
-      maxDiscountPercent: null,
       address: "서울 강남구 삼성동 156-1"
     },
     {
@@ -85,9 +133,6 @@ const Main = () => {
       distance: "610m",
       distanceNum: 610,
       image: "twosome",
-      maxDiscount: null,
-      discountNum: 0,
-      maxDiscountPercent: null,
       address: "서울 강남구 논현동 120-5"
     },
     {
@@ -96,12 +141,18 @@ const Main = () => {
       distance: "730m",
       distanceNum: 730,
       image: "starbucks",
-      maxDiscount: null,
-      discountNum: 0,
-      maxDiscountPercent: null,
       address: "서울 강남구 선릉로 428"
     },
   ];
+
+  // 더미 데이터에 할인 정보 추가
+  const dummyStores: StoreData[] = dummyStoresRaw.map(store => {
+    const discountInfo = calculateDummyDiscount(store as StoreData);
+    return {
+      ...store,
+      ...discountInfo,
+    };
+  });
 
   const getAddressFromCoords = async (latitude: number, longitude: number) => {
     try {
@@ -381,6 +432,23 @@ const Main = () => {
       
       const wasLoggedIn = !!prevSessionRef.current;
       const isNowLoggedIn = !!session;
+      
+      // INITIAL_SESSION 이벤트 처리: 세션이 없고 이전에 로그인 상태였다면 로그아웃으로 간주
+      if (event === "INITIAL_SESSION" && !session && wasLoggedIn) {
+        console.log("⚠️ [세션 만료] INITIAL_SESSION 세션 없음 - 로그인 상태였으나 세션이 없음");
+        setIsLoggedIn(false);
+        
+        toast({
+          title: "로그인 만료",
+          description: "세션이 만료되었습니다. 다시 로그인해주세요.",
+          variant: "destructive",
+        });
+        
+        // 로그인 페이지로 리다이렉트
+        navigate("/");
+        prevSessionRef.current = null;
+        return;
+      }
       
       if (event === "SIGNED_OUT" || (!session && wasLoggedIn)) {
         // 세션이 만료되거나 로그아웃된 경우
@@ -672,7 +740,17 @@ const Main = () => {
             }
           }
 
-          // 최대 할인율 계산 (지역화폐 할인율과 기프티콘 할인율 중 최대값)
+          // 파스쿠찌가 아닌 경우 할인율 표시하지 않음
+          if (store.image !== 'pascucci') {
+            return {
+              ...store,
+              maxDiscount: null,
+              discountNum: 0,
+              maxDiscountPercent: null,
+            };
+          }
+
+          // 파스쿠찌만 할인율 계산 (지역화폐 할인율과 기프티콘 할인율 중 최대값)
           const maxDiscountPercent = Math.max(localCurrencyDiscount, maxGifticonDiscount);
           
           console.log(`✅ [할인 정보] ${store.name} (${store.id}): 최대 ${maxDiscountPercent}% 할인 (지역화폐: ${localCurrencyDiscount}%, 기프티콘: ${maxGifticonDiscount}%)`);

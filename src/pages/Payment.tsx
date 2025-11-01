@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Gift, CreditCard, Plus, Minus, Trash2, Loader2 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ interface SelectedGifticon {
 
 const Payment = () => {
   const { storeId } = useParams();
+  const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2>(1);
   const [gifticons, setGifticons] = useState<UsedGifticon[]>([]);
   const [selectedGifticons, setSelectedGifticons] = useState<Map<string, SelectedGifticon>>(new Map());
@@ -418,12 +419,18 @@ const Payment = () => {
   }, [franchisePaymentMethods, storeInfo, gifticons, maxGifticonDiscount, isLoadingPaymentMethods]);
 
 
+  // 이전 로그인 상태를 추적하기 위한 ref 사용
+  const prevSessionRef = useMemo(() => ({ current: null as any }), []);
+
   // 로그인 상태 확인
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       const loggedIn = !!session;
       setIsLoggedIn(loggedIn);
+      
+      // 초기 세션 상태 저장
+      prevSessionRef.current = session;
       
       if (!loggedIn) {
         // 데모 모드: 더미 포인트 설정
@@ -434,6 +441,51 @@ const Payment = () => {
     };
     checkAuth();
   }, []);
+
+  // 세션 만료 감지 및 로그아웃 처리
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const wasLoggedIn = !!prevSessionRef.current;
+      const isNowLoggedIn = !!session;
+      
+      // INITIAL_SESSION 이벤트 처리: 세션이 없고 이전에 로그인 상태였다면 로그아웃으로 간주
+      if (event === "INITIAL_SESSION" && !session && wasLoggedIn) {
+        console.log("⚠️ [Payment] 세션 만료 - 로그인 페이지로 이동");
+        setIsLoggedIn(false);
+        
+        toast.error("세션이 만료되었습니다. 다시 로그인해주세요.");
+        
+        // 로그인 페이지로 리다이렉트
+        navigate("/");
+        prevSessionRef.current = null;
+        return;
+      }
+      
+      if (event === "SIGNED_OUT" || (!session && wasLoggedIn)) {
+        // 세션이 만료되거나 로그아웃된 경우
+        console.log("⚠️ [Payment] 로그아웃 감지 - 로그인 페이지로 이동");
+        setIsLoggedIn(false);
+        
+        // 로그인 상태였다가 만료된 경우에만 알림 표시 후 로그인 페이지로 이동
+        if (wasLoggedIn) {
+          toast.error("세션이 만료되었습니다. 다시 로그인해주세요.");
+          
+          // 로그인 페이지로 리다이렉트
+          navigate("/");
+        }
+      } else if (event === "SIGNED_IN" || (session && isNowLoggedIn)) {
+        // 로그인되거나 토큰이 갱신된 경우
+        setIsLoggedIn(true);
+      }
+      
+      // 현재 세션 상태 저장
+      prevSessionRef.current = session;
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
   // 초기 데이터 로딩 완료 체크
   useEffect(() => {
