@@ -1023,18 +1023,21 @@ const Payment = () => {
         }
       }
 
-      // 이미 결제 완료된 기프티콘이 포함되어 있는지 확인
-      if (allReservedIds.some(id => completedPurchases.has(id))) {
-        toast.error("이미 결제 완료된 기프티콘이 포함되어 있습니다.");
+      // 이미 결제 완료된 기프티콘 제외하고 새로 결제할 항목만 필터링
+      const newReservedIds = allReservedIds.filter(id => !completedPurchases.has(id));
+
+      // 새로 결제할 항목이 없으면 Step 2로 이동만
+      if (newReservedIds.length === 0) {
         setIsLoading(false);
+        setStep(2);
         return;
       }
 
-      // used_gifticons에서 상세 정보 조회
+      // used_gifticons에서 상세 정보 조회 (새로 결제할 항목만)
       const { data: usedGifticonsData, error: fetchError } = await supabase
         .from('used_gifticons')
         .select('*')
-        .in('id', allReservedIds);
+        .in('id', newReservedIds);
 
       if (fetchError) throw fetchError;
 
@@ -1042,12 +1045,12 @@ const Payment = () => {
       type UsedGifticonWithName = UsedGifticon & { name?: string };
       const typedGifticonsData = usedGifticonsData as UsedGifticonWithName[];
 
-      // 판매완료로 상태 변경
-      console.log("판매완료 변경 시도:", allReservedIds);
+      // 판매완료로 상태 변경 (새로 결제할 항목만)
+      console.log("판매완료 변경 시도:", newReservedIds);
       const { error: updateError } = await supabase
         .from('used_gifticons')
         .update({ status: '판매완료' })
-        .in('id', allReservedIds);
+        .in('id', newReservedIds);
 
       if (updateError) {
         console.error("판매완료 변경 오류:", updateError);
@@ -1089,8 +1092,8 @@ const Payment = () => {
       setUserPoints(userPoints - totalCost);
       toast.success("결제가 완료되었습니다!");
       
-      // 결제 완료된 기프티콘 ID 저장
-      setCompletedPurchases(new Set(allReservedIds));
+      // 결제 완료된 기프티콘 ID 저장 (기존 + 새로 결제한 항목)
+      setCompletedPurchases(prev => new Set([...prev, ...newReservedIds]));
       
       // 선택 상태는 유지 (뒤로가기 방지용)
       setStep(2);
@@ -1536,7 +1539,7 @@ const Payment = () => {
                   </div>
                 )}
 
-                {totalCost > 0 && (
+                {selectedGifticons.size > 0 && (
                   <div className="mt-4 pt-4 border-t border-border">
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">총 구매 포인트</span>
@@ -1718,17 +1721,17 @@ const Payment = () => {
 
             <div className="absolute bottom-4 left-4 right-4 space-y-3">
               <Button
-                onClick={handlePaymentComplete}
-                className="w-full h-14 text-lg font-semibold rounded-xl"
-              >
-                결제 완료
-              </Button>
-              <Button
                 onClick={handlePayment}
                 className="w-full h-14 text-lg font-semibold rounded-xl"
                 disabled={isLoading}
               >
                 {isLoading ? "처리 중..." : "결제하기"}
+              </Button>
+              <Button
+                onClick={handlePaymentComplete}
+                className="w-full h-14 text-lg font-semibold rounded-xl"
+              >
+                결제 완료
               </Button>
             </div>
           </>
