@@ -291,39 +291,23 @@ const Payment = () => {
               });
             }
           } else {
-            // storeId가 숫자인 경우 (카카오 플레이스 ID), kakao_place_id 컬럼으로 조회
-            const { data: storeData, error: storeError } = await supabase
-              .from('stores' as any)
-              .select('gifticon_available, local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size')
-              .eq('kakao_place_id', storeId)
-              .single();
-
-            if (!storeError && storeData) {
-              setStoreInfo({
-                gifticon_available: storeData.gifticon_available || false,
-                local_currency_available: storeData.local_currency_available || false,
-                local_currency_discount_rate: storeData.local_currency_discount_rate || null,
-                parking_available: storeData.parking_available || false,
-                free_parking: storeData.free_parking || false,
-                parking_size: storeData.parking_size,
-              });
-            } else if (storeError && storeError.code === 'PGRST116' && franchiseData) {
-              // kakao_place_id로 찾지 못한 경우, franchise_id와 매칭 시도
-              const { data: storeByNameData, error: storeByNameError } = await supabase
+            // storeId가 숫자인 경우, franchise_id로 조회
+            if (franchiseData) {
+              const { data: storeData, error: storeError } = await supabase
                 .from('stores' as any)
                 .select('gifticon_available, local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size')
                 .eq('franchise_id', franchiseData.id)
                 .limit(1)
                 .single();
 
-              if (!storeByNameError && storeByNameData) {
+              if (!storeError && storeData) {
                 setStoreInfo({
-                  gifticon_available: storeByNameData.gifticon_available || false,
-                  local_currency_available: storeByNameData.local_currency_available || false,
-                  local_currency_discount_rate: storeByNameData.local_currency_discount_rate || null,
-                  parking_available: storeByNameData.parking_available || false,
-                  free_parking: storeByNameData.free_parking || false,
-                  parking_size: storeByNameData.parking_size,
+                  gifticon_available: storeData.gifticon_available || false,
+                  local_currency_available: storeData.local_currency_available || false,
+                  local_currency_discount_rate: storeData.local_currency_discount_rate || null,
+                  parking_available: storeData.parking_available || false,
+                  free_parking: storeData.free_parking || false,
+                  parking_size: storeData.parking_size,
                 });
               }
             }
@@ -578,6 +562,7 @@ const Payment = () => {
             }
           });
           setGifticons(Array.from(existingGroupedByPrice.values()));
+          setIsLoading(false);
           return;
         }
 
@@ -1017,8 +1002,26 @@ const Payment = () => {
 
     // 데모 모드일 때는 간단한 처리
     if (!isLoggedIn) {
+      // 데모 모드에서 더미 바코드 맵 생성 (각 기프티콘마다 고유한 바코드)
+      const demoBarcodeMap = new Map<string, string>();
+      for (const selected of selectedGifticons.values()) {
+        const gifticon = gifticons.find(g => g.sale_price === selected.sale_price);
+        if (gifticon) {
+          // 선택한 개수만큼 각각 다른 더미 바코드 생성
+          selected.reservedIds.forEach((reservedId, index) => {
+            // 기본 바코드에서 숫자를 변경하여 고유한 바코드 생성
+            const baseBarcode = gifticon.barcode;
+            const baseNumber = parseInt(baseBarcode.replace(/\D/g, '')) || 1234567890123;
+            const uniqueNumber = baseNumber + index;
+            // 13자리로 맞추기
+            const uniqueBarcode = String(uniqueNumber).padStart(13, '0').slice(0, 13);
+            demoBarcodeMap.set(reservedId, uniqueBarcode);
+          });
+        }
+      }
+      setActualGifticonBarcodes(demoBarcodeMap);
       toast.success("결제가 완료되었습니다! (데모 모드)");
-      setSelectedGifticons(new Map());
+      // 데모 모드에서는 선택 상태를 유지하여 Step 2에서 바코드를 표시할 수 있도록 함
       setStep(2);
       return;
     }
@@ -1663,7 +1666,19 @@ const Payment = () => {
                 {purchasedGifticonsList.map((item, index) => {
                   const gifticon = item.gifticon;
                   // 실제 바코드가 있으면 사용, 없으면 기본 바코드 사용
-                  const actualBarcode = actualGifticonBarcodes.get(item.id) || gifticon.barcode;
+                  // 데모 모드에서도 각 기프티콘마다 고유한 바코드 생성
+                  let actualBarcode = actualGifticonBarcodes.get(item.id);
+                  if (!actualBarcode) {
+                    // 데모 모드에서 바코드 맵에 값이 없을 경우, 인덱스 기반으로 고유한 바코드 생성
+                    if (!isLoggedIn) {
+                      const baseBarcode = gifticon.barcode;
+                      const baseNumber = parseInt(baseBarcode.replace(/\D/g, '')) || 1234567890123;
+                      const uniqueNumber = baseNumber + index;
+                      actualBarcode = String(uniqueNumber).padStart(13, '0').slice(0, 13);
+                    } else {
+                      actualBarcode = gifticon.barcode;
+                    }
+                  }
                   return (
                     <div
                       key={`gifticon-${item.id}-${index}`}
