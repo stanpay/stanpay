@@ -592,12 +592,13 @@ const Payment = () => {
             }
           }
 
-          // 대기중으로 변경된 기프티콘 조회
+          // 대기중으로 변경된 기프티콘 조회 (내가 예약한 것만)
           const { data, error } = await supabase
             .from('used_gifticons')
             .select('*')
             .eq('status', '대기중')
             .eq('available_at', storeBrand)
+            .eq('reserved_by', session.user.id)
             .order('sale_price', { ascending: true });
 
           if (error) throw error;
@@ -740,7 +741,6 @@ const Payment = () => {
     // 개수만큼 기프티콘 ID 조회 및 대기중으로 변경
     try {
       let idsToReserve: string[] = [];
-      let availableItems: any[] = [];
       let soldItems: any[] = [];
 
       // 1. 먼저 이미 내가 예약한 대기중 기프티콘 조회 (우선순위 1)
@@ -758,25 +758,7 @@ const Payment = () => {
         idsToReserve = myReservedItems.map(item => item.id);
       }
 
-      // 2. 내가 예약한 것들로 부족하면, reserved_by가 null인 대기중 기프티콘 조회 (우선순위 2)
-      if (idsToReserve.length < newCount) {
-        const { data: availableData, error: fetchAvailableError } = await supabase
-          .from('used_gifticons')
-          .select('id')
-          .eq('status', '대기중')
-          .eq('available_at', storeBrand)
-          .eq('sale_price', gifticon.sale_price)
-          .is('reserved_by', null)
-          .limit(newCount - idsToReserve.length);
-
-        if (fetchAvailableError) throw fetchAvailableError;
-        if (availableData) {
-          availableItems = availableData;
-          idsToReserve = [...idsToReserve, ...availableItems.map(item => item.id)];
-        }
-      }
-
-      // 3. 여전히 부족하면 판매중인 기프티콘도 가져오기 (우선순위 3)
+      // 2. 내가 예약한 것들로 부족하면 판매중인 기프티콘 가져오기 (우선순위 2)
       if (idsToReserve.length < newCount) {
         const { data: soldData, error: soldError } = await supabase
           .from('used_gifticons')
@@ -798,28 +780,8 @@ const Payment = () => {
         return;
       }
 
-      // 대기중이 아니거나 reserved_by가 다른 기프티콘만 업데이트
-      const myReservedIds = myReservedItems?.map(item => item.id) || [];
-      const availableIds = availableItems.map(item => item.id) || [];
-      const soldIds = soldItems.map(item => item.id) || [];
-
-      // availableItems는 이미 대기중이므로 reserved_by만 업데이트
-      if (availableIds.length > 0) {
-        const { error: updateAvailableError } = await supabase
-          .from('used_gifticons')
-          .update({
-            reserved_by: session.user.id,
-            reserved_at: new Date().toISOString()
-          })
-          .in('id', availableIds);
-
-        if (updateAvailableError) {
-          console.error("기프티콘 예약 오류 (available):", updateAvailableError);
-          throw updateAvailableError;
-        }
-      }
-
       // soldItems는 판매중이므로 대기중으로 변경
+      const soldIds = soldItems.map(item => item.id);
       if (soldIds.length > 0) {
         const { error: updateSoldError } = await supabase
           .from('used_gifticons')
@@ -882,10 +844,11 @@ const Payment = () => {
 
     try {
       if (newCount === 0) {
-        // 모두 해제 (reserved_by만 null로 설정, 상태는 대기중 유지)
+        // 모두 해제 (판매중으로 복구)
         const { error } = await supabase
           .from('used_gifticons')
           .update({
+            status: '판매중',
             reserved_by: null,
             reserved_at: null
           })
@@ -897,13 +860,14 @@ const Payment = () => {
         newMap.delete(gifticon.sale_price.toString());
         setSelectedGifticons(newMap);
       } else {
-        // 하나만 해제 (reserved_by만 null로 설정, 상태는 대기중 유지)
+        // 하나만 해제 (판매중으로 복구)
         const idsToRelease = currentSelected.reservedIds.slice(0, 1);
         const remainingIds = currentSelected.reservedIds.slice(1);
 
         const { error } = await supabase
           .from('used_gifticons')
           .update({
+            status: '판매중',
             reserved_by: null,
             reserved_at: null
           })
@@ -941,10 +905,11 @@ const Payment = () => {
     if (!session?.user) return;
 
     try {
-      // 모든 선택 해제 (reserved_by만 null로 설정, 상태는 대기중 유지)
+      // 모든 선택 해제 (판매중으로 복구)
       const { error } = await supabase
         .from('used_gifticons')
         .update({
+          status: '판매중',
           reserved_by: null,
           reserved_at: null
         })
