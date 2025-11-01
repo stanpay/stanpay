@@ -1382,12 +1382,8 @@ const Payment = () => {
         let gifticonsToRemove: string[] = [];
         
         if (currentIndex !== -1) {
-          // 자기 자신도 초기 기프티콘이 아니면 제거
-          if (!initialGifticonIds.has(gifticon.id)) {
-            gifticonsToRemove.push(gifticon.id);
-          }
-          
-          // 자신 이후에 불러온 기프티콘 중 선택되지 않은 것들
+          // 자신 이후에 불러온 기프티콘 중 선택되지 않은 것들만 처리
+          // 자기 자신은 화면에서 제거하지 않음
           for (let i = currentIndex + 1; i < samePriceRangeGifticons.length; i++) {
             const laterGifticon = samePriceRangeGifticons[i];
             const isLaterSelected = Array.from(selectedGifticons.values())
@@ -1399,16 +1395,16 @@ const Payment = () => {
           }
         }
 
-        // 화면에서 제거
+        // 화면에서 제거 (자신 이후에 불러온 기프티콘만 제거)
         setGifticons(prev => {
           const remaining = prev.filter(g => {
             // 초기 로딩된 기프티콘은 항상 유지
             if (initialGifticonIds.has(g.id)) {
               return true;
             }
-            // 제거 대상 추가 기프티콘만 제거
+            // 제거 대상 추가 기프티콘만 제거 (자기 자신은 포함하지 않음)
             if (gifticonsToRemove.includes(g.id)) return false;
-            // 나머지는 모두 유지
+            // 나머지는 모두 유지 (자기 자신 포함)
             return true;
           });
 
@@ -1489,24 +1485,10 @@ const Payment = () => {
         const currentIndex = samePriceRangeGifticons.findIndex(g => g.id === gifticon.id);
         
         if (currentIndex === -1) {
-          // 같은 금액대에 없으면 선택 해제만
+          // 같은 금액대에 없으면 선택 해제만 (자기 자신은 판매중으로 변경하지 않음)
           const newMap = new Map(selectedGifticons);
           newMap.delete(gifticon.id);
           setSelectedGifticons(newMap);
-          
-          // 초기 기프티콘이 아니면 판매중으로 복구
-          if (!initialGifticonIds.has(gifticon.id)) {
-            const { error } = await supabase
-              .from('used_gifticons')
-              .update({
-                status: '판매중',
-                reserved_by: null,
-                reserved_at: null
-              })
-              .eq('id', currentSelected.reservedId);
-            
-            if (error) throw error;
-          }
           
           toast.success("선택이 취소되었습니다.");
           return;
@@ -1516,14 +1498,8 @@ const Payment = () => {
         const gifticonsToRelease: string[] = [];
         const gifticonsToRemove: string[] = [];
         
-        // 자기 자신도 초기 기프티콘이 아니면 판매중으로 변경
-        if (!initialGifticonIds.has(gifticon.id)) {
-          // 초기 기프티콘이 아니면 자신도 판매중으로 변경
-          gifticonsToRelease.push(currentSelected.reservedId);
-          gifticonsToRemove.push(gifticon.id);
-        }
-        
-        // 자신 이후에 불러온 기프티콘 중 선택되지 않은 것들
+        // 자신 이후에 불러온 기프티콘 중 선택되지 않은 것들만 처리
+        // 자기 자신은 판매중으로 변경하지 않음
         for (let i = currentIndex + 1; i < samePriceRangeGifticons.length; i++) {
           const laterGifticon = samePriceRangeGifticons[i];
           const isLaterSelected = Array.from(selectedGifticons.values())
@@ -1550,18 +1526,16 @@ const Payment = () => {
           if (error) throw error;
         }
 
-        // 화면에서 제거
+        // 화면에서 제거 (자신 이후에 불러온 기프티콘만 제거)
         setGifticons(prev => {
           const remaining = prev.filter(g => {
-            // 초기 로딩된 기프티콘은 항상 유지 (단, 현재 기프티콘이 첫 번째가 아니면 제거 가능)
+            // 초기 로딩된 기프티콘은 항상 유지
             if (initialGifticonIds.has(g.id)) {
-              // 현재 기프티콘이 첫 번째가 아니면 제거 대상에 포함
-              if (gifticonsToRemove.includes(g.id)) return false;
               return true;
             }
-            // 제거 대상 추가 기프티콘만 제거
+            // 제거 대상 추가 기프티콘만 제거 (자기 자신은 포함하지 않음)
             if (gifticonsToRemove.includes(g.id)) return false;
-            // 나머지는 모두 유지
+            // 나머지는 모두 유지 (자기 자신 포함)
             return true;
           });
 
