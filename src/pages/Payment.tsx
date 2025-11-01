@@ -847,11 +847,21 @@ const Payment = () => {
         return newMap;
       });
 
-      // 기존 기프티콘 목록에 추가
+      // 기존 기프티콘 목록에 추가 (원본 기프티콘 바로 아래에 위치)
       setGifticons(prev => {
-        const combined = [...prev, selectedGifticonToAdd];
-        // sale_price 낮은 순으로 정렬
-        combined.sort((a, b) => a.sale_price - b.sale_price);
+        const combined = [...prev];
+        // 원본 기프티콘의 인덱스 찾기
+        const parentIndex = combined.findIndex(g => g.id === selectedGifticon.id);
+        
+        if (parentIndex !== -1) {
+          // 원본 기프티콘 바로 아래에 추가
+          combined.splice(parentIndex + 1, 0, selectedGifticonToAdd);
+        } else {
+          // 원본 기프티콘을 찾을 수 없으면 끝에 추가 후 sale_price 낮은 순으로 정렬
+          combined.push(selectedGifticonToAdd);
+          combined.sort((a, b) => a.sale_price - b.sale_price);
+        }
+        
         return combined;
       });
 
@@ -897,15 +907,13 @@ const Payment = () => {
           }
         }
 
-        // 화면에서 제거 (선택되지 않은 추가 기프티콘들)
-        // 화면에 없어질 기프티콘만 판매중으로 변경 (화면에 있으면 대기중 유지)
+        // 화면에서 제거 (선택되지 않은 추가 기프티콘들만)
+        // 원본 기프티콘은 화면에 남아있어야 함 (선택 해제만 됨)
         setGifticons(prev => {
           const remaining = prev.filter(g => {
-            // 원본 기프티콘은 제거 (선택 해제)
-            if (g.id === gifticon.id) return false;
-            // 제거 대상 추가 기프티콘도 제거
+            // 제거 대상 추가 기프티콘만 제거
             if (gifticonsToRemove.includes(g.id)) return false;
-            // 나머지는 유지 (화면에 있으면 대기중 상태 유지)
+            // 나머지는 모두 유지 (원본 기프티콘 포함)
             return true;
           });
           return remaining;
@@ -938,9 +946,9 @@ const Payment = () => {
           }
         });
 
-        // 화면에서 제거할 기프티콘 찾기 (선택되지 않은 추가 기프티콘들)
+        // 화면에서 제거할 기프티콘 찾기 (선택되지 않은 추가 기프티콘들만)
         const gifticonsToRemove: string[] = [];
-        const gifticonIdsToRelease: string[] = [currentSelected.reservedId]; // 원본 기프티콘은 제거
+        const gifticonIdsToRelease: string[] = []; // 원본 기프티콘은 화면에 남아있으므로 DB 상태 변경 없음
 
         for (const addedId of addedGifticonIds) {
           // 추가로 불러온 기프티콘이 선택되어 있는지 확인
@@ -948,15 +956,15 @@ const Payment = () => {
             .some(selected => selected.reservedId === addedId);
 
           if (!isAddedGifticonSelected) {
-            // 선택되지 않은 추가 기프티콘은 화면에서 제거
+            // 선택되지 않은 추가 기프티콘은 화면에서 제거하고 판매중으로 복구
             gifticonsToRemove.push(addedId);
             gifticonIdsToRelease.push(addedId);
           }
           // 선택된 추가 기프티콘은 화면에 남아있으므로 대기중 상태 유지 (DB 업데이트 불필요)
         }
 
-        // 화면에서 제거될 기프티콘만 판매중으로 복구
-        // 화면에 남아있는 기프티콘은 대기중 상태로 유지
+        // 화면에서 제거될 추가 기프티콘만 판매중으로 복구
+        // 원본 기프티콘은 화면에 남아있으므로 대기중 상태 유지
         if (gifticonIdsToRelease.length > 0) {
           const { error } = await supabase
             .from('used_gifticons')
@@ -970,14 +978,13 @@ const Payment = () => {
           if (error) throw error;
         }
 
-        // 화면에서 제거 (원본 기프티콘 + 선택되지 않은 추가 기프티콘들)
+        // 화면에서 제거 (선택되지 않은 추가 기프티콘들만)
+        // 원본 기프티콘은 화면에 남아있어야 함 (선택 해제만 됨)
         setGifticons(prev => {
           const remaining = prev.filter(g => {
-            // 원본 기프티콘은 제거 (선택 해제)
-            if (g.id === gifticon.id) return false;
-            // 제거 대상 추가 기프티콘도 제거
+            // 제거 대상 추가 기프티콘만 제거
             if (gifticonsToRemove.includes(g.id)) return false;
-            // 나머지는 유지 (화면에 있으면 대기중 상태 유지, DB는 이미 대기중 상태)
+            // 나머지는 모두 유지 (원본 기프티콘 포함, DB는 이미 대기중 상태)
             return true;
           });
           return remaining;

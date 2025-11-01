@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MessageCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -181,11 +180,8 @@ const Login = () => {
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-12">
-          <div className="w-20 h-20 bg-primary rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
-            <MessageCircle className="w-10 h-10 text-primary-foreground" />
-          </div>
-          <h1 className="text-4xl font-bold mb-3 text-foreground">
-            스탠
+          <h1 className="text-6xl font-bold mb-3 text-primary">
+            Stan
           </h1>
           <p className="text-muted-foreground text-lg">
             결제의 기준이 되다
