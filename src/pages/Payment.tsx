@@ -263,17 +263,46 @@ const Payment = () => {
 
         // 3. 매장 정보 조회 (storeId를 기반으로)
         if (storeId) {
-          // storeId는 실제 매장 ID일 수도 있고, 브랜드명일 수도 있음
-          // 먼저 storeId로 직접 조회 시도
-          const { data: storeData, error: storeError } = await supabase
-            .from('stores' as any)
-            .select('gifticon_available, local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size')
-            .eq('id', storeId)
-            .single();
+          // storeId가 UUID 형식인지 확인 (UUID는 8-4-4-4-12 패턴)
+          const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(storeId);
+          
+          if (isUUID) {
+            // storeId가 UUID인 경우, id 컬럼으로 조회
+            const { data: storeData, error: storeError } = await supabase
+              .from('stores' as any)
+              .select('gifticon_available, local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size')
+              .eq('id', storeId)
+              .single();
 
-          if (storeError && storeError.code !== 'PGRST116') {
-            // storeId가 실제 ID가 아닌 경우, franchise_id와 매칭 시도
-            if (franchiseData) {
+            if (!storeError && storeData) {
+              setStoreInfo({
+                gifticon_available: storeData.gifticon_available || false,
+                local_currency_available: storeData.local_currency_available || false,
+                local_currency_discount_rate: storeData.local_currency_discount_rate || null,
+                parking_available: storeData.parking_available || false,
+                free_parking: storeData.free_parking || false,
+                parking_size: storeData.parking_size,
+              });
+            }
+          } else {
+            // storeId가 숫자인 경우 (카카오 플레이스 ID), kakao_place_id 컬럼으로 조회
+            const { data: storeData, error: storeError } = await supabase
+              .from('stores' as any)
+              .select('gifticon_available, local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size')
+              .eq('kakao_place_id', storeId)
+              .single();
+
+            if (!storeError && storeData) {
+              setStoreInfo({
+                gifticon_available: storeData.gifticon_available || false,
+                local_currency_available: storeData.local_currency_available || false,
+                local_currency_discount_rate: storeData.local_currency_discount_rate || null,
+                parking_available: storeData.parking_available || false,
+                free_parking: storeData.free_parking || false,
+                parking_size: storeData.parking_size,
+              });
+            } else if (storeError && storeError.code === 'PGRST116' && franchiseData) {
+              // kakao_place_id로 찾지 못한 경우, franchise_id와 매칭 시도
               const { data: storeByNameData, error: storeByNameError } = await supabase
                 .from('stores' as any)
                 .select('gifticon_available, local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size')
@@ -292,15 +321,6 @@ const Payment = () => {
                 });
               }
             }
-          } else if (storeData) {
-            setStoreInfo({
-              gifticon_available: storeData.gifticon_available || false,
-              local_currency_available: storeData.local_currency_available || false,
-              local_currency_discount_rate: storeData.local_currency_discount_rate || null,
-              parking_available: storeData.parking_available || false,
-              free_parking: storeData.free_parking || false,
-              parking_size: storeData.parking_size,
-            });
           }
         }
       } catch (error) {
@@ -1042,13 +1062,13 @@ const Payment = () => {
     <div className={`bg-background ${step === 2 ? 'h-screen overflow-hidden' : 'min-h-screen pb-6'}`}>
       {step === 1 && (
         <header className="sticky top-0 z-50 bg-card border-b border-border">
-          <div className="max-w-md mx-auto pl-4 pr-0 py-4 flex items-center gap-3 relative">
-            <Link to="/main" className="absolute left-4">
+          <div className="max-w-md mx-auto py-4 relative">
+            <Link to="/main" className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
               <Button variant="ghost" size="icon" className="rounded-full">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
             </Link>
-            <h1 className="text-xl font-bold flex-1 text-center">
+            <h1 className="text-xl font-bold w-full text-center">
               {actualStoreName || "매장"}
             </h1>
           </div>

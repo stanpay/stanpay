@@ -7,7 +7,7 @@ interface StoreCardProps {
   name: string;
   distance: string;
   image: string;
-  maxDiscount: string;
+  maxDiscount: string | null; // 할인율이 없으면 null
   address?: string;
   isLoggedIn?: boolean;
   onLoginRequired?: () => void;
@@ -48,9 +48,11 @@ const StoreCard = ({ id, name, distance, image, maxDiscount, address, isLoggedIn
               alt={name}
               className="w-20 h-20 object-contain"
             />
-            <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground px-2 py-1 rounded-lg text-xs font-bold">
-              최대 {maxDiscount}
-            </div>
+            {maxDiscount && (
+              <div className="absolute top-2 right-2 bg-destructive text-destructive-foreground px-2 py-1 rounded-lg text-xs font-bold">
+                {maxDiscount}
+              </div>
+            )}
           </div>
           <div className="p-3 bg-card">
             <h3 className={`font-bold mb-1 whitespace-nowrap ${getFontSizeClass()}`}>{name}</h3>

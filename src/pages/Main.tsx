@@ -21,8 +21,9 @@ const Main = () => {
     distance: string;
     distanceNum: number;
     image: string;
-    maxDiscount: string;
-    discountNum: number;
+    maxDiscount: string | null; // 할인율이 없으면 null
+    discountNum: number; // 정렬용 할인율 (0-100)
+    maxDiscountPercent: number | null; // 최대 할인율 (%)
     lat?: number;
     lon?: number;
     address?: string;
@@ -40,8 +41,9 @@ const Main = () => {
       distance: "350m",
       distanceNum: 350,
       image: "starbucks",
-      maxDiscount: "2,500원",
-      discountNum: 2500,
+      maxDiscount: null,
+      discountNum: 0,
+      maxDiscountPercent: null,
       address: "서울 강남구 강남대로 지하 396"
     },
     {
@@ -50,8 +52,9 @@ const Main = () => {
       distance: "520m",
       distanceNum: 520,
       image: "baskin",
-      maxDiscount: "3,000원",
-      discountNum: 3000,
+      maxDiscount: null,
+      discountNum: 0,
+      maxDiscountPercent: null,
       address: "서울 강남구 역삼동 735-3"
     },
     {
@@ -60,8 +63,9 @@ const Main = () => {
       distance: "280m",
       distanceNum: 280,
       image: "mega",
-      maxDiscount: "1,800원",
-      discountNum: 1800,
+      maxDiscount: null,
+      discountNum: 0,
+      maxDiscountPercent: null,
       address: "서울 강남구 테헤란로 123"
     },
     {
@@ -70,8 +74,9 @@ const Main = () => {
       distance: "450m",
       distanceNum: 450,
       image: "pascucci",
-      maxDiscount: "2,300원",
-      discountNum: 2300,
+      maxDiscount: null,
+      discountNum: 0,
+      maxDiscountPercent: null,
       address: "서울 강남구 삼성동 156-1"
     },
     {
@@ -80,8 +85,9 @@ const Main = () => {
       distance: "610m",
       distanceNum: 610,
       image: "twosome",
-      maxDiscount: "2,400원",
-      discountNum: 2400,
+      maxDiscount: null,
+      discountNum: 0,
+      maxDiscountPercent: null,
       address: "서울 강남구 논현동 120-5"
     },
     {
@@ -90,8 +96,9 @@ const Main = () => {
       distance: "730m",
       distanceNum: 730,
       image: "starbucks",
-      maxDiscount: "2,500원",
-      discountNum: 2500,
+      maxDiscount: null,
+      discountNum: 0,
+      maxDiscountPercent: null,
       address: "서울 강남구 선릉로 428"
     },
   ];
@@ -527,11 +534,11 @@ const Main = () => {
 
       // 검색할 브랜드 목록
       const brands = [
-        { keyword: "스타벅스", image: "starbucks", discountNum: 2500 },
-        { keyword: "베스킨라빈스", image: "baskin", discountNum: 3000 },
-        { keyword: "메가커피", image: "mega", discountNum: 1800 },
-        { keyword: "파스쿠찌", image: "pascucci", discountNum: 2300 },
-        { keyword: "투썸플레이스", image: "twosome", discountNum: 2400 },
+        { keyword: "스타벅스", image: "starbucks" },
+        { keyword: "베스킨라빈스", image: "baskin" },
+        { keyword: "메가커피", image: "mega" },
+        { keyword: "파스쿠찌", image: "pascucci" },
+        { keyword: "투썸플레이스", image: "twosome" },
       ];
       console.log("🔍 [매장 검색] 검색할 브랜드:", brands.map(b => b.keyword));
 
@@ -574,8 +581,9 @@ const Main = () => {
                     distance: distanceNum < 1000 ? `${Math.round(distanceNum)}m` : `${(distanceNum / 1000).toFixed(1)}km`,
                     distanceNum: Math.round(distanceNum),
                     image: brand.image,
-                    maxDiscount: `${brand.discountNum.toLocaleString()}원`,
-                    discountNum: brand.discountNum,
+                    maxDiscount: null, // 실제 데이터 조회 후 업데이트됨
+                    discountNum: 0, // 실제 데이터 조회 후 업데이트됨
+                    maxDiscountPercent: null, // 실제 데이터 조회 후 업데이트됨
                     lat: parseFloat(place.y),
                     lon: parseFloat(place.x),
                     address: place.road_address_name || place.address_name,
@@ -602,9 +610,92 @@ const Main = () => {
       console.log("✅ [매장 검색] 모든 브랜드 검색 완료");
       console.log("📊 [매장 검색] 브랜드별 결과:", results.map((r, i) => `${brands[i].keyword}: ${r.length}개`));
       
-      const allStores = results.flat();
+      let allStores = results.flat();
       console.log("🏪 [매장 검색] 총 매장 수:", allStores.length);
       console.log("📋 [매장 검색] 최종 매장 목록:", allStores);
+      
+      // 각 매장의 할인 정보 조회
+      console.log("🔄 [할인 정보 조회] 시작");
+      const storesWithDiscount = await Promise.all(allStores.map(async (store) => {
+        try {
+          // kakao_place_id로 stores 테이블에서 매장 정보 조회
+          const { data: storeData, error: storeError } = await supabase
+            .from('stores' as any)
+            .select('local_currency_discount_rate, gifticon_available, franchise_id')
+            .eq('kakao_place_id', store.id)
+            .single();
+
+          if (storeError || !storeData) {
+            console.log(`⚠️ [할인 정보] ${store.name} (${store.id}): 매장 정보 없음`);
+            return {
+              ...store,
+              maxDiscount: null,
+              discountNum: 0,
+              maxDiscountPercent: null,
+            };
+          }
+
+          // 지역화폐 할인율
+          const localCurrencyDiscount = (storeData as any).local_currency_discount_rate || 0;
+
+          // 기프티콘 할인율 조회 (해당 브랜드의 사용 가능한 기프티콘 중 최대 할인율)
+          let maxGifticonDiscount = 0;
+          if ((storeData as any).gifticon_available) {
+            // 브랜드명 매핑 (image 값을 브랜드명으로 변환)
+            const brandNameMap: Record<string, string> = {
+              starbucks: "스타벅스",
+              baskin: "베스킨라빈스",
+              mega: "메가커피",
+              pascucci: "파스쿠찌",
+              twosome: "투썸플레이스",
+              compose: "컴포즈커피",
+              ediya: "이디야",
+              paik: "빽다방",
+            };
+            const brandName = brandNameMap[store.image] || store.image;
+
+            // 해당 브랜드의 사용 가능한 기프티콘 조회
+            const { data: gifticonsData, error: gifticonsError } = await supabase
+              .from('used_gifticons' as any)
+              .select('original_price, sale_price')
+              .eq('available_at', brandName)
+              .eq('status', '판매중')
+              .limit(10);
+
+            if (!gifticonsError && gifticonsData && gifticonsData.length > 0) {
+              // 최대 할인율 계산
+              const discounts = gifticonsData.map((g: any) => {
+                const discountAmount = g.original_price - g.sale_price;
+                return Math.round((discountAmount / g.original_price) * 100);
+              });
+              maxGifticonDiscount = Math.max(...discounts);
+            }
+          }
+
+          // 최대 할인율 계산 (지역화폐 할인율과 기프티콘 할인율 중 최대값)
+          const maxDiscountPercent = Math.max(localCurrencyDiscount, maxGifticonDiscount);
+          
+          console.log(`✅ [할인 정보] ${store.name} (${store.id}): 최대 ${maxDiscountPercent}% 할인 (지역화폐: ${localCurrencyDiscount}%, 기프티콘: ${maxGifticonDiscount}%)`);
+
+          return {
+            ...store,
+            maxDiscount: maxDiscountPercent > 0 ? `최대 ${maxDiscountPercent}% 할인` : null,
+            discountNum: maxDiscountPercent,
+            maxDiscountPercent: maxDiscountPercent > 0 ? maxDiscountPercent : null,
+          };
+        } catch (error) {
+          console.error(`❌ [할인 정보] ${store.name} 조회 오류:`, error);
+          return {
+            ...store,
+            maxDiscount: null,
+            discountNum: 0,
+            maxDiscountPercent: null,
+          };
+        }
+      }));
+
+      allStores = storesWithDiscount;
+      console.log("✅ [할인 정보 조회] 완료");
       
       // localStorage에 매장 정보 저장 (Payment 페이지에서 사용)
       try {
@@ -694,7 +785,7 @@ const Main = () => {
           <div>
             <h2 className="text-2xl font-bold mb-2">결제 가능 매장</h2>
             <p className="text-muted-foreground">
-              {sortBy === "distance" ? "거리 순으로 정렬됩니다" : "최대 할인금액 순으로 정렬됩니다"}
+              {sortBy === "distance" ? "거리 순으로 정렬됩니다" : "최대 할인율 순으로 정렬됩니다"}
             </p>
           </div>
           <Button
