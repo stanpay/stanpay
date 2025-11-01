@@ -32,6 +32,11 @@ const Payment = () => {
   const [selectedGifticons, setSelectedGifticons] = useState<Map<string, SelectedGifticon>>(new Map());
   // 추가로 불러온 기프티콘의 관계 추적 (key: 추가된 기프티콘 ID, value: 원본 기프티콘 ID)
   const [addedGifticonRelations, setAddedGifticonRelations] = useState<Map<string, string>>(new Map());
+  // 초기 로딩된 기프티콘 ID 목록 (화면에서 사라지지 않아야 하는 기프티콘들)
+  const [initialGifticonIds, setInitialGifticonIds] = useState<Set<string>>(new Set());
+  // 각 기프티콘의 불러온 순서 추적 (key: 기프티콘 ID, value: 불러온 순서)
+  const [gifticonLoadOrder, setGifticonLoadOrder] = useState<Map<string, number>>(new Map());
+  let loadOrderCounter = useRef(0);
   const [userPoints, setUserPoints] = useState<number>(0);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -543,9 +548,30 @@ const Payment = () => {
           selectedGifticons.push(items[0]); // 할인율이 가장 높은 것 선택
         });
 
-        // 최종적으로 sale_price 낮은 순으로 정렬
-        selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
+        // 불러온 순서 추적 및 초기 기프티콘 ID 저장
+        const initialIds = new Set<string>();
+        const loadOrder = new Map<string, number>();
+        selectedGifticons.forEach((gifticon, index) => {
+          initialIds.add(gifticon.id);
+          loadOrder.set(gifticon.id, loadOrderCounter.current++);
+        });
+
+        // 정렬: 1. 가격대별, 2. 같은 가격대일 경우 불러온 순서대로
+        selectedGifticons.sort((a, b) => {
+          const priceRangeA = getPriceRange(a.original_price);
+          const priceRangeB = getPriceRange(b.original_price);
+          if (priceRangeA !== priceRangeB) {
+            return priceRangeA - priceRangeB; // 가격대별 정렬
+          }
+          // 같은 가격대일 경우 불러온 순서대로
+          const orderA = loadOrder.get(a.id) ?? 0;
+          const orderB = loadOrder.get(b.id) ?? 0;
+          return orderA - orderB;
+        });
+
         setGifticons(selectedGifticons);
+        setInitialGifticonIds(initialIds);
+        setGifticonLoadOrder(loadOrder);
         return;
       }
 
@@ -596,9 +622,30 @@ const Payment = () => {
             selectedGifticons.push(items[0]); // 할인율이 가장 높은 것 선택
           });
 
-          // 최종적으로 sale_price 낮은 순으로 정렬
-          selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
+          // 불러온 순서 추적 및 초기 기프티콘 ID 저장
+          const initialIds = new Set<string>();
+          const loadOrder = new Map<string, number>();
+          selectedGifticons.forEach((gifticon) => {
+            initialIds.add(gifticon.id);
+            loadOrder.set(gifticon.id, loadOrderCounter.current++);
+          });
+
+          // 정렬: 1. 가격대별, 2. 같은 가격대일 경우 불러온 순서대로
+          selectedGifticons.sort((a, b) => {
+            const priceRangeA = getPriceRange(a.original_price);
+            const priceRangeB = getPriceRange(b.original_price);
+            if (priceRangeA !== priceRangeB) {
+              return priceRangeA - priceRangeB; // 가격대별 정렬
+            }
+            // 같은 가격대일 경우 불러온 순서대로
+            const orderA = loadOrder.get(a.id) ?? 0;
+            const orderB = loadOrder.get(b.id) ?? 0;
+            return orderA - orderB;
+          });
+
           setGifticons(selectedGifticons);
+          setInitialGifticonIds(initialIds);
+          setGifticonLoadOrder(loadOrder);
           setIsLoading(false);
           return;
         }
@@ -686,9 +733,30 @@ const Payment = () => {
             finalGifticons.push(items[0]); // 할인율이 가장 높은 것 선택
           });
 
-          // 최종적으로 sale_price 낮은 순으로 정렬
-          finalGifticons.sort((a, b) => a.sale_price - b.sale_price);
+          // 불러온 순서 추적 및 초기 기프티콘 ID 저장
+          const initialIds = new Set<string>();
+          const loadOrder = new Map<string, number>();
+          finalGifticons.forEach((gifticon) => {
+            initialIds.add(gifticon.id);
+            loadOrder.set(gifticon.id, loadOrderCounter.current++);
+          });
+
+          // 정렬: 1. 가격대별, 2. 같은 가격대일 경우 불러온 순서대로
+          finalGifticons.sort((a, b) => {
+            const priceRangeA = getPriceRange(a.original_price);
+            const priceRangeB = getPriceRange(b.original_price);
+            if (priceRangeA !== priceRangeB) {
+              return priceRangeA - priceRangeB; // 가격대별 정렬
+            }
+            // 같은 가격대일 경우 불러온 순서대로
+            const orderA = loadOrder.get(a.id) ?? 0;
+            const orderB = loadOrder.get(b.id) ?? 0;
+            return orderA - orderB;
+          });
+
           setGifticons(finalGifticons);
+          setInitialGifticonIds(initialIds);
+          setGifticonLoadOrder(loadOrder);
         } else {
           setGifticons([]);
         }
@@ -847,20 +915,34 @@ const Payment = () => {
         return newMap;
       });
 
-      // 기존 기프티콘 목록에 추가 (원본 기프티콘 바로 아래에 위치)
+      // 불러온 순서 추가 (원본 기프티콘의 순서 다음으로 설정)
+      loadOrderCounter.current++;
+      const parentOrder = gifticonLoadOrder.get(selectedGifticon.id) ?? 0;
+      // 원본 기프티콘 바로 다음 순서로 설정 (같은 가격대 내에서 원본 바로 아래 위치)
+      const newOrder = parentOrder + 0.1; // 원본 바로 다음으로 배치하기 위해 소수점 사용
+
+      setGifticonLoadOrder(prev => {
+        const newMap = new Map(prev);
+        newMap.set(selectedGifticonToAdd.id, newOrder);
+        return newMap;
+      });
+
+      // 기존 기프티콘 목록에 추가
       setGifticons(prev => {
-        const combined = [...prev];
-        // 원본 기프티콘의 인덱스 찾기
-        const parentIndex = combined.findIndex(g => g.id === selectedGifticon.id);
-        
-        if (parentIndex !== -1) {
-          // 원본 기프티콘 바로 아래에 추가
-          combined.splice(parentIndex + 1, 0, selectedGifticonToAdd);
-        } else {
-          // 원본 기프티콘을 찾을 수 없으면 끝에 추가 후 sale_price 낮은 순으로 정렬
-          combined.push(selectedGifticonToAdd);
-          combined.sort((a, b) => a.sale_price - b.sale_price);
-        }
+        const combined = [...prev, selectedGifticonToAdd];
+
+        // 정렬: 1. 가격대별, 2. 같은 가격대일 경우 불러온 순서대로
+        combined.sort((a, b) => {
+          const priceRangeA = getPriceRange(a.original_price);
+          const priceRangeB = getPriceRange(b.original_price);
+          if (priceRangeA !== priceRangeB) {
+            return priceRangeA - priceRangeB; // 가격대별 정렬
+          }
+          // 같은 가격대일 경우 불러온 순서대로
+          const orderA = gifticonLoadOrder.get(a.id) ?? (a.id === selectedGifticonToAdd.id ? newOrder : 0);
+          const orderB = gifticonLoadOrder.get(b.id) ?? (b.id === selectedGifticonToAdd.id ? newOrder : 0);
+          return orderA - orderB;
+        });
         
         return combined;
       });
@@ -908,14 +990,31 @@ const Payment = () => {
         }
 
         // 화면에서 제거 (선택되지 않은 추가 기프티콘들만)
-        // 원본 기프티콘은 화면에 남아있어야 함 (선택 해제만 됨)
+        // 초기 로딩된 기프티콘은 항상 화면에 남아있어야 함
+        // 추가로 불러온 기프티콘 중 선택되지 않은 것만 제거
         setGifticons(prev => {
           const remaining = prev.filter(g => {
+            // 초기 로딩된 기프티콘은 항상 유지
+            if (initialGifticonIds.has(g.id)) return true;
             // 제거 대상 추가 기프티콘만 제거
             if (gifticonsToRemove.includes(g.id)) return false;
-            // 나머지는 모두 유지 (원본 기프티콘 포함)
+            // 나머지는 모두 유지
             return true;
           });
+
+          // 정렬: 1. 가격대별, 2. 같은 가격대일 경우 불러온 순서대로
+          remaining.sort((a, b) => {
+            const priceRangeA = getPriceRange(a.original_price);
+            const priceRangeB = getPriceRange(b.original_price);
+            if (priceRangeA !== priceRangeB) {
+              return priceRangeA - priceRangeB; // 가격대별 정렬
+            }
+            // 같은 가격대일 경우 불러온 순서대로
+            const orderA = gifticonLoadOrder.get(a.id) ?? 0;
+            const orderB = gifticonLoadOrder.get(b.id) ?? 0;
+            return orderA - orderB;
+          });
+
           return remaining;
         });
 
@@ -979,14 +1078,31 @@ const Payment = () => {
         }
 
         // 화면에서 제거 (선택되지 않은 추가 기프티콘들만)
-        // 원본 기프티콘은 화면에 남아있어야 함 (선택 해제만 됨)
+        // 초기 로딩된 기프티콘은 항상 화면에 남아있어야 함
+        // 추가로 불러온 기프티콘 중 선택되지 않은 것만 제거
         setGifticons(prev => {
           const remaining = prev.filter(g => {
+            // 초기 로딩된 기프티콘은 항상 유지
+            if (initialGifticonIds.has(g.id)) return true;
             // 제거 대상 추가 기프티콘만 제거
             if (gifticonsToRemove.includes(g.id)) return false;
-            // 나머지는 모두 유지 (원본 기프티콘 포함, DB는 이미 대기중 상태)
+            // 나머지는 모두 유지 (DB는 이미 대기중 상태)
             return true;
           });
+
+          // 정렬: 1. 가격대별, 2. 같은 가격대일 경우 불러온 순서대로
+          remaining.sort((a, b) => {
+            const priceRangeA = getPriceRange(a.original_price);
+            const priceRangeB = getPriceRange(b.original_price);
+            if (priceRangeA !== priceRangeB) {
+              return priceRangeA - priceRangeB; // 가격대별 정렬
+            }
+            // 같은 가격대일 경우 불러온 순서대로
+            const orderA = gifticonLoadOrder.get(a.id) ?? 0;
+            const orderB = gifticonLoadOrder.get(b.id) ?? 0;
+            return orderA - orderB;
+          });
+
           return remaining;
         });
 
