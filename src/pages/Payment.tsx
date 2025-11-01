@@ -944,22 +944,11 @@ const Payment = () => {
         return;
       }
 
-      // 할인효율 기준으로 정렬
+      // 할인효율 기준으로 정렬 (개수 제한 없이 최대로 선택하기 위해 천원대별 그룹화 제거)
       const sortedData = [...autoSelectData].sort(sortByDiscountEfficiency);
 
-      // 천원대별로 그룹화하면서 할인효율이 높은 순으로 이미 정렬된 데이터를 사용
-      const groupedByThousand = new Map<number, UsedGifticon>();
-      sortedData.forEach((item) => {
-        const priceRange = getPriceRange(item.original_price);
-        if (!groupedByThousand.has(priceRange)) {
-          groupedByThousand.set(priceRange, item);
-        }
-      });
-
-      // 그룹화된 항목들을 배열로 변환
-      const autoSelectList: UsedGifticon[] = Array.from(groupedByThousand.values());
-
-      // 그리디 방식으로 예산 내에서 자동 선택
+      // 정렬된 모든 기프티콘을 대상으로 그리디 방식으로 예산 내에서 자동 선택
+      const autoSelectList: UsedGifticon[] = sortedData;
       const selectedGifticonsMap = new Map<string, SelectedGifticon>();
       const autoSelectedList: UsedGifticon[] = []; // 자동선택된 기프티콘 목록 저장
       let remainingOriginalPriceBudget = inputBudget; // 총 기프티콘 금액권 예산
