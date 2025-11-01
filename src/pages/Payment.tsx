@@ -522,20 +522,30 @@ const Payment = () => {
           ? dummyGifticons.filter((gifticon) => gifticon.available_at === storeBrand)
           : dummyGifticons;
 
-        // sale_price 낮은 순으로 정렬
-        filteredDummy.sort((a, b) => a.sale_price - b.sale_price);
-
-        // 천원대별로 그룹화하여 각 천원대별 하나씩만 선택
-        const groupedByThousand = new Map<number, UsedGifticon>();
+        // 천원대별로 그룹화
+        const groupedByThousand = new Map<number, UsedGifticon[]>();
         filteredDummy.forEach((item) => {
           const priceRange = getPriceRange(item.original_price);
           if (!groupedByThousand.has(priceRange)) {
-            groupedByThousand.set(priceRange, item);
+            groupedByThousand.set(priceRange, []);
           }
+          groupedByThousand.get(priceRange)!.push(item);
         });
+
+        // 각 천원대별로 할인율 높은 순으로 정렬 후 첫 번째만 선택
+        const selectedGifticons: UsedGifticon[] = [];
+        groupedByThousand.forEach((items, priceRange) => {
+          items.sort((a, b) => {
+            const discountA = getDiscountRate(a.original_price, a.sale_price);
+            const discountB = getDiscountRate(b.original_price, b.sale_price);
+            return discountB - discountA; // 할인율 높은 순
+          });
+          selectedGifticons.push(items[0]); // 할인율이 가장 높은 것 선택
+        });
+
         // 최종적으로 sale_price 낮은 순으로 정렬
-        const finalGifticons = Array.from(groupedByThousand.values()).sort((a, b) => a.sale_price - b.sale_price);
-        setGifticons(finalGifticons);
+        selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
+        setGifticons(selectedGifticons);
         return;
       }
 
@@ -565,20 +575,30 @@ const Payment = () => {
 
         // 이미 대기중인 기프티콘이 있고 천원대별로 하나씩 이상 있으면 그것만 표시
         if (existingPending && existingPending.length > 0) {
-          // sale_price 낮은 순으로 정렬
-          existingPending.sort((a, b) => a.sale_price - b.sale_price);
-
-          // 천원대별로 그룹화하여 각 천원대별 하나씩만 선택
-          const existingGroupedByThousand = new Map<number, UsedGifticon>();
+          // 천원대별로 그룹화
+          const existingGroupedByThousand = new Map<number, UsedGifticon[]>();
           existingPending.forEach((item) => {
             const priceRange = getPriceRange(item.original_price);
             if (!existingGroupedByThousand.has(priceRange)) {
-              existingGroupedByThousand.set(priceRange, item);
+              existingGroupedByThousand.set(priceRange, []);
             }
+            existingGroupedByThousand.get(priceRange)!.push(item);
           });
+
+          // 각 천원대별로 할인율 높은 순으로 정렬 후 첫 번째만 선택
+          const selectedGifticons: UsedGifticon[] = [];
+          existingGroupedByThousand.forEach((items, priceRange) => {
+            items.sort((a, b) => {
+              const discountA = getDiscountRate(a.original_price, a.sale_price);
+              const discountB = getDiscountRate(b.original_price, b.sale_price);
+              return discountB - discountA; // 할인율 높은 순
+            });
+            selectedGifticons.push(items[0]); // 할인율이 가장 높은 것 선택
+          });
+
           // 최종적으로 sale_price 낮은 순으로 정렬
-          const finalGifticons = Array.from(existingGroupedByThousand.values()).sort((a, b) => a.sale_price - b.sale_price);
-          setGifticons(finalGifticons);
+          selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
+          setGifticons(selectedGifticons);
           setIsLoading(false);
           return;
         }
@@ -598,20 +618,26 @@ const Payment = () => {
           return;
         }
 
-        // sale_price 낮은 순으로 정렬
-        allData.sort((a, b) => a.sale_price - b.sale_price);
-
-        // 천원대별로 그룹화하여 각 천원대별 하나씩만 선택
-        const groupedByThousand = new Map<number, UsedGifticon>();
+        // 천원대별로 그룹화
+        const groupedByThousand = new Map<number, UsedGifticon[]>();
         allData.forEach((item) => {
           const priceRange = getPriceRange(item.original_price);
           if (!groupedByThousand.has(priceRange)) {
-            groupedByThousand.set(priceRange, item);
+            groupedByThousand.set(priceRange, []);
           }
+          groupedByThousand.get(priceRange)!.push(item);
         });
 
-        // 화면에 표시될 각 천원대별 기프티콘 1개씩만 대기중으로 변경
-        const displayGifticons = Array.from(groupedByThousand.values());
+        // 각 천원대별로 할인율 높은 순으로 정렬 후 첫 번째만 선택
+        const displayGifticons: UsedGifticon[] = [];
+        groupedByThousand.forEach((items, priceRange) => {
+          items.sort((a, b) => {
+            const discountA = getDiscountRate(a.original_price, a.sale_price);
+            const discountB = getDiscountRate(b.original_price, b.sale_price);
+            return discountB - discountA; // 할인율 높은 순
+          });
+          displayGifticons.push(items[0]); // 할인율이 가장 높은 것 선택
+        });
         for (const gifticon of displayGifticons) {
           // 각 천원대의 첫 번째 기프티콘만 대기중으로 변경
           const { error: reserveError } = await supabase
@@ -639,19 +665,29 @@ const Payment = () => {
         if (error) throw error;
 
         if (data) {
-          // sale_price 낮은 순으로 정렬
-          data.sort((a, b) => a.sale_price - b.sale_price);
-
-          // 천원대별 중복 제거하여 최종 표시
-          const finalGroupedByThousand = new Map<number, UsedGifticon>();
+          // 천원대별로 그룹화
+          const finalGroupedByThousand = new Map<number, UsedGifticon[]>();
           data.forEach((item) => {
             const priceRange = getPriceRange(item.original_price);
             if (!finalGroupedByThousand.has(priceRange)) {
-              finalGroupedByThousand.set(priceRange, item);
+              finalGroupedByThousand.set(priceRange, []);
             }
+            finalGroupedByThousand.get(priceRange)!.push(item);
           });
+
+          // 각 천원대별로 할인율 높은 순으로 정렬 후 첫 번째만 선택
+          const finalGifticons: UsedGifticon[] = [];
+          finalGroupedByThousand.forEach((items, priceRange) => {
+            items.sort((a, b) => {
+              const discountA = getDiscountRate(a.original_price, a.sale_price);
+              const discountB = getDiscountRate(b.original_price, b.sale_price);
+              return discountB - discountA; // 할인율 높은 순
+            });
+            finalGifticons.push(items[0]); // 할인율이 가장 높은 것 선택
+          });
+
           // 최종적으로 sale_price 낮은 순으로 정렬
-          const finalGifticons = Array.from(finalGroupedByThousand.values()).sort((a, b) => a.sale_price - b.sale_price);
+          finalGifticons.sort((a, b) => a.sale_price - b.sale_price);
           setGifticons(finalGifticons);
         } else {
           setGifticons([]);
@@ -850,7 +886,7 @@ const Payment = () => {
           }
         });
 
-        // 추가로 불러온 기프티콘 중 선택되지 않은 것들만 제거
+        // 화면에서 제거할 기프티콘 찾기 (선택되지 않은 추가 기프티콘들)
         const gifticonsToRemove: string[] = [];
         for (const addedId of addedGifticonIds) {
           const isAddedGifticonSelected = Array.from(selectedGifticons.values())
@@ -862,7 +898,18 @@ const Payment = () => {
         }
 
         // 화면에서 제거 (선택되지 않은 추가 기프티콘들)
-        setGifticons(prev => prev.filter(g => !gifticonsToRemove.includes(g.id)));
+        // 화면에 없어질 기프티콘만 판매중으로 변경 (화면에 있으면 대기중 유지)
+        setGifticons(prev => {
+          const remaining = prev.filter(g => {
+            // 원본 기프티콘은 제거 (선택 해제)
+            if (g.id === gifticon.id) return false;
+            // 제거 대상 추가 기프티콘도 제거
+            if (gifticonsToRemove.includes(g.id)) return false;
+            // 나머지는 유지 (화면에 있으면 대기중 상태 유지)
+            return true;
+          });
+          return remaining;
+        });
 
         // 관계 맵에서 제거
         setAddedGifticonRelations(prev => {
@@ -891,9 +938,9 @@ const Payment = () => {
           }
         });
 
-        // 추가로 불러온 기프티콘 중 선택되지 않은 것들만 제거 대상
+        // 화면에서 제거할 기프티콘 찾기 (선택되지 않은 추가 기프티콘들)
         const gifticonsToRemove: string[] = [];
-        const gifticonIdsToRelease: string[] = [currentSelected.reservedId];
+        const gifticonIdsToRelease: string[] = [currentSelected.reservedId]; // 원본 기프티콘은 제거
 
         for (const addedId of addedGifticonIds) {
           // 추가로 불러온 기프티콘이 선택되어 있는지 확인
@@ -901,13 +948,15 @@ const Payment = () => {
             .some(selected => selected.reservedId === addedId);
 
           if (!isAddedGifticonSelected) {
-            // 선택되지 않은 추가 기프티콘은 제거
+            // 선택되지 않은 추가 기프티콘은 화면에서 제거
             gifticonsToRemove.push(addedId);
             gifticonIdsToRelease.push(addedId);
           }
+          // 선택된 추가 기프티콘은 화면에 남아있으므로 대기중 상태 유지 (DB 업데이트 불필요)
         }
 
-        // 원본 기프티콘 및 선택되지 않은 추가 기프티콘을 판매중으로 복구
+        // 화면에서 제거될 기프티콘만 판매중으로 복구
+        // 화면에 남아있는 기프티콘은 대기중 상태로 유지
         if (gifticonIdsToRelease.length > 0) {
           const { error } = await supabase
             .from('used_gifticons')
@@ -921,8 +970,18 @@ const Payment = () => {
           if (error) throw error;
         }
 
-        // 화면에서 제거 (선택되지 않은 추가 기프티콘들)
-        setGifticons(prev => prev.filter(g => !gifticonsToRemove.includes(g.id)));
+        // 화면에서 제거 (원본 기프티콘 + 선택되지 않은 추가 기프티콘들)
+        setGifticons(prev => {
+          const remaining = prev.filter(g => {
+            // 원본 기프티콘은 제거 (선택 해제)
+            if (g.id === gifticon.id) return false;
+            // 제거 대상 추가 기프티콘도 제거
+            if (gifticonsToRemove.includes(g.id)) return false;
+            // 나머지는 유지 (화면에 있으면 대기중 상태 유지, DB는 이미 대기중 상태)
+            return true;
+          });
+          return remaining;
+        });
 
         // 관계 맵에서 제거 (제거된 추가 기프티콘들의 관계)
         setAddedGifticonRelations(prev => {
