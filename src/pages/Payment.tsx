@@ -811,6 +811,23 @@ const Payment = () => {
     return a.sale_price - b.sale_price;
   }, []);
 
+  // 모든 하위 기프티콘 ID를 재귀적으로 수집하는 헬퍼 함수
+  const getAllDescendantGifticonIds = (parentId: string, relations: Map<string, string>): string[] => {
+    const descendantIds: string[] = [];
+    
+    // 직접 자식 찾기
+    relations.forEach((pId, addedId) => {
+      if (pId === parentId) {
+        descendantIds.push(addedId);
+        // 재귀적으로 자식의 자식도 찾기
+        const grandchildren = getAllDescendantGifticonIds(addedId, relations);
+        descendantIds.push(...grandchildren);
+      }
+    });
+    
+    return descendantIds;
+  };
+
   // 확인 버튼 클릭 시 DB에서 기프티콘 조회 후 자동 선택
   const executeAutoSelect = async () => {
     if (!inputBudget || inputBudget <= 0 || !canUseGifticon) {
@@ -1415,33 +1432,20 @@ const Payment = () => {
         let gifticonsToRemove: string[] = [];
         let gifticonIdsToRelease: string[] = [];
 
-        if (isAddedGifticon) {
-          // 추가로 불러온 기프티콘을 선택 해제하는 경우
-          // 추가로 불러온 기프티콘을 선택 해제하면 항상 화면에서 제거하고 판매중으로 복구
-          gifticonsToRemove.push(gifticon.id);
-          gifticonIdsToRelease.push(currentSelected.reservedId);
-        } else {
-          // 원본 기프티콘을 선택 해제하는 경우
-          // 추가로 불러온 기프티콘 찾기 (이 기프티콘을 원본으로 하는 추가 기프티콘들)
-          const addedGifticonIds: string[] = [];
-          addedGifticonRelations.forEach((pId, addedId) => {
-            if (pId === gifticon.id) {
-              addedGifticonIds.push(addedId);
-            }
-          });
+        // 선택된 기프티콘은 해제하지 않고, 모든 하위 기프티콘만 제거
+        // 해당 기프티콘의 모든 하위 기프티콘 ID를 재귀적으로 수집
+        const allDescendantIds = getAllDescendantGifticonIds(gifticon.id, addedGifticonRelations);
+        
+        // 하위 기프티콘 중 선택되지 않은 것만 제거 대상에 추가
+        for (const descendantId of allDescendantIds) {
+          // 하위 기프티콘이 선택되어 있는지 확인
+          const isDescendantSelected = Array.from(selectedGifticons.values())
+            .some(selected => selected.reservedId === descendantId);
 
-          // 화면에서 제거할 기프티콘 찾기 (선택되지 않은 추가 기프티콘들만)
-          for (const addedId of addedGifticonIds) {
-            // 추가로 불러온 기프티콘이 선택되어 있는지 확인
-            const isAddedGifticonSelected = Array.from(selectedGifticons.values())
-              .some(selected => selected.reservedId === addedId);
-
-            if (!isAddedGifticonSelected) {
-              // 선택되지 않은 추가 기프티콘은 화면에서 제거하고 판매중으로 복구
-              gifticonsToRemove.push(addedId);
-              gifticonIdsToRelease.push(addedId);
-            }
-            // 선택된 추가 기프티콘은 화면에 남아있으므로 대기중 상태 유지 (DB 업데이트 불필요)
+          if (!isDescendantSelected) {
+            // 선택되지 않은 하위 기프티콘은 화면에서 제거하고 판매중으로 복구
+            gifticonsToRemove.push(descendantId);
+            gifticonIdsToRelease.push(descendantId);
           }
         }
 
@@ -1489,28 +1493,21 @@ const Payment = () => {
           return remaining;
         });
 
-        // 관계 맵에서 제거 (제거된 추가 기프티콘들의 관계)
-        // 추가로 불러온 기프티콘을 선택 해제한 경우도 관계 맵에서 제거
-        if (isAddedGifticon && gifticonsToRemove.includes(gifticon.id)) {
-          setAddedGifticonRelations(prev => {
-            const newMap = new Map(prev);
-            newMap.delete(gifticon.id);
-            return newMap;
-          });
+        // 관계 맵에서 제거 (제거된 하위 기프티콘들의 관계만 제거)
+        setAddedGifticonRelations(prev => {
+          const newMap = new Map(prev);
+          gifticonsToRemove.forEach(id => newMap.delete(id));
+          return newMap;
+        });
+
+        // 선택된 기프티콘 자체는 선택 상태 유지 (실제로 해제하지 않음)
+        // 하위 기프티콘만 제거했으므로 선택 상태는 변경하지 않음
+
+        if (gifticonsToRemove.length > 0) {
+          toast.success(`${gifticonsToRemove.length}개의 하위 기프티콘이 제거되었습니다.`);
         } else {
-          setAddedGifticonRelations(prev => {
-            const newMap = new Map(prev);
-            gifticonsToRemove.forEach(id => newMap.delete(id));
-            return newMap;
-          });
+          toast.success("하위 기프티콘이 없습니다.");
         }
-
-        // 선택 상태에서 제거
-        const newMap = new Map(selectedGifticons);
-        newMap.delete(gifticon.id);
-        setSelectedGifticons(newMap);
-
-        toast.success("선택이 취소되었습니다.");
       } catch (error: any) {
         console.error("기프티콘 선택 해제 오류:", error);
         toast.error("선택 해제 중 오류가 발생했습니다.");
