@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Main = () => {
   const { toast } = useToast();
@@ -31,6 +32,7 @@ const Main = () => {
 
   const [stores, setStores] = useState<StoreData[]>([]);
   const [isLoadingStores, setIsLoadingStores] = useState(true);
+  const [isLoadingMoreStores, setIsLoadingMoreStores] = useState(false);
   const [currentCoords, setCurrentCoords] = useState<{latitude: number, longitude: number} | null>(null);
 
   // 더미 기프티콘 데이터 (브랜드별)
@@ -682,9 +684,16 @@ const Main = () => {
       console.log("🏪 [매장 검색] 총 매장 수:", allStores.length);
       console.log("📋 [매장 검색] 최종 매장 목록:", allStores);
       
-      // 각 매장의 할인 정보 조회
-      console.log("🔄 [할인 정보 조회] 시작");
-      const storesWithDiscount = await Promise.all(allStores.map(async (store) => {
+      // 거리순으로 정렬하여 초기 8개 선택
+      allStores.sort((a, b) => a.distanceNum - b.distanceNum);
+      const initialStores = allStores.slice(0, 8);
+      const remainingStores = allStores.slice(8);
+      
+      console.log("🚀 [초기 로딩] 처음 8개 매장만 빠르게 표시");
+      
+      // 각 매장의 할인 정보 조회 (초기 8개만 먼저 처리)
+      console.log("🔄 [할인 정보 조회] 초기 8개 매장 처리 시작");
+      const initialStoresWithDiscount = await Promise.all(initialStores.map(async (store) => {
         try {
           // 파스쿠찌와 투썸플레이스만 할인율 조회
           if (store.image !== 'pascucci' && store.image !== 'twosome') {
@@ -853,19 +862,208 @@ const Main = () => {
         }
       }));
 
-      allStores = storesWithDiscount;
-      console.log("✅ [할인 정보 조회] 완료");
+      console.log("✅ [할인 정보 조회] 초기 8개 완료");
       
-      // localStorage에 매장 정보 저장 (Payment 페이지에서 사용)
+      // 초기 8개 먼저 표시
+      setStores(initialStoresWithDiscount);
+      setIsLoadingStores(false);
+      
+      // localStorage에 초기 매장 정보 저장 (Payment 페이지에서 사용)
       try {
-        localStorage.setItem('nearbyStores', JSON.stringify(allStores));
+        localStorage.setItem('nearbyStores', JSON.stringify(initialStoresWithDiscount));
       } catch (e) {
         console.error("localStorage 저장 오류:", e);
       }
       
-      setStores(allStores);
-      setIsLoadingStores(false);
-      console.log("✅ [매장 검색] 완료 - 상태 업데이트 완료");
+      console.log("✅ [초기 로딩] 완료 - 초기 8개 매장 표시");
+      
+      // 나머지 매장 데이터 백그라운드 로딩
+      if (remainingStores.length > 0) {
+        setIsLoadingMoreStores(true);
+        console.log("🔄 [추가 로딩] 나머지 매장 데이터 로딩 시작");
+        
+        // 나머지 매장의 할인 정보 조회
+        const remainingStoresWithDiscount = await Promise.all(remainingStores.map(async (store) => {
+          try {
+            // 파스쿠찌와 투썸플레이스만 할인율 조회
+            if (store.image !== 'pascucci' && store.image !== 'twosome') {
+              return {
+                ...store,
+                maxDiscount: null,
+                discountNum: 0,
+                maxDiscountPercent: null,
+              };
+            }
+
+            // 파스쿠찌와 투썸플레이스 할인 정보 조회
+            // 1. 프랜차이즈 정보 조회
+            const brandNameMap: Record<string, string> = {
+              starbucks: "스타벅스",
+              baskin: "베스킨라빈스",
+              mega: "메가커피",
+              pascucci: "파스쿠찌",
+              twosome: "투썸플레이스",
+              compose: "컴포즈커피",
+              ediya: "이디야",
+              paik: "빽다방",
+            };
+            const brandName = brandNameMap[store.image] || store.image;
+
+            // 프랜차이즈 정보 조회
+            let franchiseData: any = null;
+            try {
+              const { data: franchise, error: franchiseError } = await supabase
+                .from('franchises' as any)
+                .select('id')
+                .eq('name', brandName)
+                .single();
+              
+              if (!franchiseError && franchise) {
+                franchiseData = franchise;
+              }
+            } catch (e) {
+              console.log(`⚠️ [할인 정보] ${store.name}: 프랜차이즈 정보 조회 실패`);
+            }
+
+            // 2. 프랜차이즈별 결제 방식 적립/할인 정보 조회
+            let franchiseDiscountRate = 0;
+            if (franchiseData) {
+              try {
+                const { data: paymentMethods, error: paymentMethodsError } = await supabase
+                  .from('franchise_payment_methods' as any)
+                  .select('method_name, method_type, rate')
+                  .eq('franchise_id', franchiseData.id);
+
+                if (!paymentMethodsError && paymentMethods && paymentMethods.length > 0) {
+                  // 파스쿠찌: 해피포인트 적립 (5%)
+                  if (store.image === 'pascucci') {
+                    const happyPoint = paymentMethods.find((pm: any) => 
+                      pm.method_name === '해피포인트' && (pm.method_type === '적립' || pm.method_type === 'accumulation')
+                    );
+                    if (happyPoint && (happyPoint as any).rate) {
+                      franchiseDiscountRate = (happyPoint as any).rate;
+                    }
+                  }
+                }
+              } catch (e) {
+                console.log(`⚠️ [할인 정보] ${store.name}: 프랜차이즈 결제 방식 정보 조회 실패`);
+              }
+            }
+
+            // 3. 매장 정보 조회 (kakao_place_id로, 실패 시 무시)
+            let localCurrencyDiscount = 0;
+            let maxGifticonDiscount = 0;
+            
+            try {
+              // storeId가 숫자인지 확인 (카카오 플레이스 ID)
+              const isNumeric = /^\d+$/.test(store.id);
+              let storeData: any = null;
+              let storeError: any = null;
+
+              if (isNumeric && franchiseData) {
+                // kakao_place_id로 조회 시도
+                const { data, error } = await supabase
+                  .from('stores' as any)
+                  .select('local_currency_discount_rate, gifticon_available')
+                  .eq('kakao_place_id', store.id)
+                  .single();
+                
+                storeData = data;
+                storeError = error;
+              }
+
+              // kakao_place_id 조회 실패 시 franchise_id로 조회 시도
+              if (storeError && franchiseData) {
+                const { data, error } = await supabase
+                  .from('stores' as any)
+                  .select('local_currency_discount_rate, gifticon_available')
+                  .eq('franchise_id', franchiseData.id)
+                  .limit(1)
+                  .single();
+                
+                if (!error && data) {
+                  storeData = data;
+                }
+              }
+
+              if (storeData) {
+                // 지역화폐 할인율
+                localCurrencyDiscount = (storeData as any).local_currency_discount_rate || 0;
+
+                // 기프티콘 할인율 조회
+                if ((storeData as any).gifticon_available) {
+                  try {
+                    const { data: gifticonsData, error: gifticonsError } = await supabase
+                      .from('used_gifticons' as any)
+                      .select('original_price, sale_price')
+                      .eq('available_at', brandName)
+                      .eq('status', '판매중')
+                      .limit(10);
+
+                    if (!gifticonsError && gifticonsData && gifticonsData.length > 0) {
+                      const discounts = gifticonsData.map((g: any) => {
+                        const discountAmount = g.original_price - g.sale_price;
+                        return Math.round((discountAmount / g.original_price) * 100);
+                      });
+                      maxGifticonDiscount = Math.max(...discounts);
+                    }
+                  } catch (e) {
+                    console.log(`⚠️ [할인 정보] ${store.name}: 기프티콘 정보 조회 실패`);
+                  }
+                }
+              }
+            } catch (e) {
+              console.log(`⚠️ [할인 정보] ${store.name}: 매장 정보 조회 실패`);
+            }
+
+            // 4. 최대 할인율 계산 (프랜차이즈 적립/할인, 지역화폐 할인율, 기프티콘 할인율 중 최대값)
+            const maxDiscountPercent = Math.max(franchiseDiscountRate, localCurrencyDiscount, maxGifticonDiscount);
+            
+            if (maxDiscountPercent > 0) {
+              const discountDetails = [];
+              if (franchiseDiscountRate > 0) {
+                discountDetails.push(`프랜차이즈: ${franchiseDiscountRate}%`);
+              }
+              if (localCurrencyDiscount > 0) {
+                discountDetails.push(`지역화폐: ${localCurrencyDiscount}%`);
+              }
+              if (maxGifticonDiscount > 0) {
+                discountDetails.push(`기프티콘: ${maxGifticonDiscount}%`);
+              }
+              console.log(`✅ [할인 정보] ${store.name} (${store.id}): 최대 ${maxDiscountPercent}% 할인 (${discountDetails.join(', ')})`);
+            }
+
+            return {
+              ...store,
+              maxDiscount: maxDiscountPercent > 0 ? `최대 ${maxDiscountPercent}% 할인` : null,
+              discountNum: maxDiscountPercent,
+              maxDiscountPercent: maxDiscountPercent > 0 ? maxDiscountPercent : null,
+            };
+          } catch (error) {
+            console.error(`❌ [할인 정보] ${store.name} 조회 오류:`, error);
+            return {
+              ...store,
+              maxDiscount: null,
+              discountNum: 0,
+              maxDiscountPercent: null,
+            };
+          }
+        }));
+
+        // 전체 매장 데이터 합치기
+        const allStoresWithDiscount = [...initialStoresWithDiscount, ...remainingStoresWithDiscount];
+        
+        // localStorage에 전체 매장 정보 저장
+        try {
+          localStorage.setItem('nearbyStores', JSON.stringify(allStoresWithDiscount));
+        } catch (e) {
+          console.error("localStorage 저장 오류:", e);
+        }
+        
+        setStores(allStoresWithDiscount);
+        setIsLoadingMoreStores(false);
+        console.log("✅ [추가 로딩] 완료 - 전체 매장 데이터 표시");
+      }
     } catch (error) {
       console.error("❌ [매장 검색] 실패:", error);
       console.error("에러 스택:", (error as Error).stack);
@@ -964,15 +1162,36 @@ const Main = () => {
             <p className="text-muted-foreground">매장 정보를 불러오는 중...</p>
           </div>
         ) : sortedStores.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 animate-fade-in">
-            {sortedStores.map((store) => (
-              <StoreCard 
-                key={store.id} 
-                {...store} 
-                isLoggedIn={isLoggedIn}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 gap-4 animate-fade-in">
+              {sortedStores.map((store) => (
+                <StoreCard 
+                  key={store.id} 
+                  {...store} 
+                  isLoggedIn={isLoggedIn}
+                />
+              ))}
+            </div>
+            {isLoadingMoreStores && (
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                {[...Array(4)].map((_, index) => (
+                  <div key={`skeleton-${index}`} className="animate-fade-in">
+                    <div className="overflow-hidden rounded-lg border border-border/50 bg-card">
+                      <div className="flex flex-col">
+                        <div className="flex-1 bg-primary/10 flex items-center justify-center p-4 relative">
+                          <Skeleton className="w-20 h-20 rounded-md" />
+                        </div>
+                        <div className="p-3 bg-card">
+                          <Skeleton className="h-4 w-24 mb-2" />
+                          <Skeleton className="h-3 w-16" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-12">
             <p className="text-muted-foreground">주변에 매장이 없습니다</p>

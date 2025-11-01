@@ -4,8 +4,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Gift, CreditCard, Plus, Minus, Trash2, Loader2 } from "lucide-react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import JsBarcode from "jsbarcode";
 
 interface UsedGifticon {
   id: string;
@@ -37,6 +38,7 @@ const Payment = () => {
   const [recentlyPurchasedCount, setRecentlyPurchasedCount] = useState<number>(0);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [storeBrand, setStoreBrand] = useState<string>(""); // 매장 브랜드명 (스타벅스, 파스쿠찌 등)
+  const [actualGifticonBarcodes, setActualGifticonBarcodes] = useState<Map<string, string>>(new Map()); // 실제 기프티콘 바코드 맵
   const [franchiseId, setFranchiseId] = useState<string | null>(null);
   const [franchisePaymentMethods, setFranchisePaymentMethods] = useState<Array<{
     method_name: string;
@@ -1003,34 +1005,66 @@ const Payment = () => {
     .reduce((sum, item) => sum + item.count, 0) + 1;
 
   const BarcodeDisplay = ({ number }: { number: string }) => {
-    const bars: { width: number; isBlack: boolean }[] = [];
-    bars.push({ width: 2, isBlack: true }, { width: 1, isBlack: false }, { width: 2, isBlack: true });
-    
-    number.split('').forEach((digit) => {
-      const num = parseInt(digit);
-      const widths = [1, 2, 1, 3, 2, 1, 3, 2, 2, 1];
-      const pattern = [true, false, true, false];
-      
-      pattern.forEach((isBlack, i) => {
-        bars.push({ width: widths[(num + i) % widths.length], isBlack });
-      });
-    });
-    
-    bars.push({ width: 2, isBlack: true }, { width: 1, isBlack: false }, { width: 2, isBlack: true });
-    
+    const svgRef = useRef<SVGSVGElement>(null);
+
+    useEffect(() => {
+      if (svgRef.current && number) {
+        try {
+          // 숫자만 추출 (문자열이 있을 수 있음)
+          const barcodeNumber = number.replace(/\D/g, '');
+          
+          if (barcodeNumber.length === 0) {
+            return;
+          }
+
+          // EAN-13 형식인지 확인 (13자리)
+          if (barcodeNumber.length === 13) {
+            JsBarcode(svgRef.current, barcodeNumber, {
+              format: "EAN13",
+              width: 2,
+              height: 80,
+              displayValue: false,
+              background: "transparent",
+              lineColor: "#000000",
+              margin: 0,
+            });
+          } else if (barcodeNumber.length === 8) {
+            // EAN-8 형식 (8자리)
+            JsBarcode(svgRef.current, barcodeNumber, {
+              format: "EAN8",
+              width: 2,
+              height: 80,
+              displayValue: false,
+              background: "transparent",
+              lineColor: "#000000",
+              margin: 0,
+            });
+          } else {
+            // CODE128 형식 (다양한 길이 지원)
+            JsBarcode(svgRef.current, barcodeNumber, {
+              format: "CODE128",
+              width: 2,
+              height: 80,
+              displayValue: false,
+              background: "transparent",
+              lineColor: "#000000",
+              margin: 0,
+            });
+          }
+        } catch (error) {
+          console.error("바코드 생성 오류:", error);
+        }
+      }
+    }, [number]);
+
     return (
       <div className="space-y-1">
-        <div className="flex gap-0 h-16 items-center justify-center bg-white p-3 rounded-lg">
-          {bars.map((bar, i) => (
-            <div
-              key={i}
-              className={bar.isBlack ? 'bg-black' : 'bg-white'}
-              style={{
-                width: `${bar.width * 2}px`,
-                height: '100%',
-              }}
-            />
-          ))}
+        <div className="flex items-center justify-center bg-white p-3 rounded-lg">
+          <svg
+            ref={svgRef}
+            className="max-w-full h-20"
+            style={{ maxHeight: '80px' }}
+          />
         </div>
         <p className="text-center font-mono text-xs tracking-widest">{number}</p>
       </div>
@@ -1047,6 +1081,48 @@ const Payment = () => {
       }
     }
   }
+
+  // Step 2 진입 시 예약된 기프티콘의 실제 바코드 조회
+  useEffect(() => {
+    const fetchActualBarcodes = async () => {
+      if (step !== 2 || selectedGifticons.size === 0) return;
+
+      // 모든 예약된 기프티콘 ID 수집
+      const allReservedIds: string[] = [];
+      for (const selected of selectedGifticons.values()) {
+        allReservedIds.push(...selected.reservedIds);
+      }
+
+      if (allReservedIds.length === 0) return;
+
+      // 데모 모드에서는 실제 바코드 조회 불필요 (이미 gifticon.barcode에 있음)
+      if (!isLoggedIn) {
+        return;
+      }
+
+      try {
+        // 각 예약된 기프티콘의 실제 바코드 조회
+        const { data: gifticonsData, error } = await supabase
+          .from('used_gifticons')
+          .select('id, barcode')
+          .in('id', allReservedIds);
+
+        if (error) throw error;
+
+        if (gifticonsData) {
+          const barcodeMap = new Map<string, string>();
+          gifticonsData.forEach((item) => {
+            barcodeMap.set(item.id, item.barcode);
+          });
+          setActualGifticonBarcodes(barcodeMap);
+        }
+      } catch (error: any) {
+        console.error("기프티콘 바코드 조회 오류:", error);
+      }
+    };
+
+    fetchActualBarcodes();
+  }, [step, selectedGifticons, isLoggedIn]);
 
   // Step 2 진입 시 (바코드 표시 시) 자동으로 사용완료 처리
   useEffect(() => {
@@ -1441,6 +1517,8 @@ const Payment = () => {
               >
                 {purchasedGifticonsList.map((item, index) => {
                   const gifticon = item.gifticon;
+                  // 실제 바코드가 있으면 사용, 없으면 기본 바코드 사용
+                  const actualBarcode = actualGifticonBarcodes.get(item.id) || gifticon.barcode;
                   return (
                     <div
                       key={`gifticon-${item.id}-${index}`}
@@ -1452,7 +1530,7 @@ const Payment = () => {
                     >
                       <Card className="p-4 rounded-2xl border-border/50">
                         <div className="space-y-3">
-                          <BarcodeDisplay number={gifticon.barcode} />
+                          <BarcodeDisplay number={actualBarcode} />
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                               <Gift className="w-4 h-4 text-primary" />
