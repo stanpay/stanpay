@@ -95,14 +95,14 @@ const StoreCard = ({
               <span className="break-words">{distance}</span>
             </div>
             {(showLocalCurrencyChip || showParkingChip) && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-nowrap gap-1 overflow-x-auto">
                 {showLocalCurrencyChip && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 whitespace-nowrap shrink-0">
                     지역화폐 {local_currency_discount_rate}%할인
                   </span>
                 )}
                 {showParkingChip && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-secondary-foreground border border-border whitespace-nowrap shrink-0">
                     {getParkingText()}
                   </span>
                 )}
