@@ -552,7 +552,36 @@ const Payment = () => {
 
       setIsLoading(true);
       try {
-        // 먼저 판매중 기프티콘을 금액대별로 조회
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          setGifticons([]);
+          return;
+        }
+
+        // 먼저 이미 내가 예약한 대기중 기프티콘 조회
+        const { data: existingPending, error: existingError } = await supabase
+          .from('used_gifticons')
+          .select('*')
+          .eq('status', '대기중')
+          .eq('available_at', storeBrand)
+          .eq('reserved_by', session.user.id)
+          .order('sale_price', { ascending: true });
+
+        if (existingError) throw existingError;
+
+        // 이미 대기중인 기프티콘이 있고 금액대별로 하나씩 이상 있으면 그것만 표시
+        if (existingPending && existingPending.length > 0) {
+          const existingGroupedByPrice = new Map<number, UsedGifticon>();
+          existingPending.forEach((item) => {
+            if (!existingGroupedByPrice.has(item.sale_price)) {
+              existingGroupedByPrice.set(item.sale_price, item);
+            }
+          });
+          setGifticons(Array.from(existingGroupedByPrice.values()));
+          return;
+        }
+
+        // 대기중인 기프티콘이 없거나 없는 금액대가 있으면 판매중에서 가져오기
         const { data: allData, error: fetchError } = await supabase
           .from('used_gifticons')
           .select('*')
@@ -576,51 +605,45 @@ const Payment = () => {
         });
 
         // 화면에 표시될 각 금액대별 기프티콘 1개씩만 대기중으로 변경
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const displayGifticons = Array.from(groupedByPrice.values());
-          for (const gifticon of displayGifticons) {
-            // 각 금액대의 첫 번째 기프티콘만 대기중으로 변경
-            const { error: reserveError } = await supabase
-              .from('used_gifticons')
-              .update({
-                status: '대기중',
-                reserved_by: session.user.id,
-                reserved_at: new Date().toISOString()
-              })
-              .eq('id', gifticon.id);
-
-            if (reserveError) {
-              console.error("기프티콘 예약 오류:", reserveError);
-            }
-          }
-
-          // 대기중으로 변경된 기프티콘 조회 (내가 예약한 것만)
-          const { data, error } = await supabase
+        const displayGifticons = Array.from(groupedByPrice.values());
+        for (const gifticon of displayGifticons) {
+          // 각 금액대의 첫 번째 기프티콘만 대기중으로 변경
+          const { error: reserveError } = await supabase
             .from('used_gifticons')
-            .select('*')
-            .eq('status', '대기중')
-            .eq('available_at', storeBrand)
-            .eq('reserved_by', session.user.id)
-            .order('sale_price', { ascending: true });
+            .update({
+              status: '대기중',
+              reserved_by: session.user.id,
+              reserved_at: new Date().toISOString()
+            })
+            .eq('id', gifticon.id);
 
-          if (error) throw error;
-
-          if (data) {
-            // 금액대별 중복 제거하여 최종 표시
-            const finalGroupedByPrice = new Map<number, UsedGifticon>();
-            data.forEach((item) => {
-              if (!finalGroupedByPrice.has(item.sale_price)) {
-                finalGroupedByPrice.set(item.sale_price, item);
-              }
-            });
-            setGifticons(Array.from(finalGroupedByPrice.values()));
-          } else {
-            setGifticons([]);
+          if (reserveError) {
+            console.error("기프티콘 예약 오류:", reserveError);
           }
+        }
+
+        // 대기중으로 변경된 기프티콘 조회 (내가 예약한 것만)
+        const { data, error } = await supabase
+          .from('used_gifticons')
+          .select('*')
+          .eq('status', '대기중')
+          .eq('available_at', storeBrand)
+          .eq('reserved_by', session.user.id)
+          .order('sale_price', { ascending: true });
+
+        if (error) throw error;
+
+        if (data) {
+          // 금액대별 중복 제거하여 최종 표시
+          const finalGroupedByPrice = new Map<number, UsedGifticon>();
+          data.forEach((item) => {
+            if (!finalGroupedByPrice.has(item.sale_price)) {
+              finalGroupedByPrice.set(item.sale_price, item);
+            }
+          });
+          setGifticons(Array.from(finalGroupedByPrice.values()));
         } else {
-          // 세션이 없으면 그룹화된 데이터만 표시
-          setGifticons(Array.from(groupedByPrice.values()));
+          setGifticons([]);
         }
       } catch (error: any) {
         console.error("기프티콘 조회 오류:", error);
