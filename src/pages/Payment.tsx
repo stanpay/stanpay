@@ -549,26 +549,74 @@ const Payment = () => {
 
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        // 먼저 판매중 기프티콘을 금액대별로 조회
+        const { data: allData, error: fetchError } = await supabase
           .from('used_gifticons')
           .select('*')
           .eq('status', '판매중')
-          .eq('available_at', storeBrand) // 브랜드별 필터링
+          .eq('available_at', storeBrand)
           .order('sale_price', { ascending: true });
 
-        if (error) throw error;
+        if (fetchError) throw fetchError;
 
-        if (data) {
-          // 금액대별 중복 제거: sale_price 기준으로 그룹화하여 각 금액대별 하나씩만 선택
-          const groupedByPrice = new Map<number, UsedGifticon>();
-          data.forEach((item) => {
-            if (!groupedByPrice.has(item.sale_price)) {
-              groupedByPrice.set(item.sale_price, item);
-            }
-          });
-          setGifticons(Array.from(groupedByPrice.values()));
-        } else {
+        if (!allData || allData.length === 0) {
           setGifticons([]);
+          return;
+        }
+
+        // 금액대별로 그룹화하여 각 금액대별 하나씩만 선택
+        const groupedByPrice = new Map<number, UsedGifticon>();
+        allData.forEach((item) => {
+          if (!groupedByPrice.has(item.sale_price)) {
+            groupedByPrice.set(item.sale_price, item);
+          }
+        });
+
+        // 화면에 표시될 각 금액대별 기프티콘 1개씩만 대기중으로 변경
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const displayGifticons = Array.from(groupedByPrice.values());
+          for (const gifticon of displayGifticons) {
+            // 각 금액대의 첫 번째 기프티콘만 대기중으로 변경
+            const { error: reserveError } = await supabase
+              .from('used_gifticons')
+              .update({
+                status: '대기중',
+                reserved_by: session.user.id,
+                reserved_at: new Date().toISOString()
+              })
+              .eq('id', gifticon.id);
+
+            if (reserveError) {
+              console.error("기프티콘 예약 오류:", reserveError);
+            }
+          }
+
+          // 대기중으로 변경된 기프티콘 조회
+          const { data, error } = await supabase
+            .from('used_gifticons')
+            .select('*')
+            .eq('status', '대기중')
+            .eq('available_at', storeBrand)
+            .order('sale_price', { ascending: true });
+
+          if (error) throw error;
+
+          if (data) {
+            // 금액대별 중복 제거하여 최종 표시
+            const finalGroupedByPrice = new Map<number, UsedGifticon>();
+            data.forEach((item) => {
+              if (!finalGroupedByPrice.has(item.sale_price)) {
+                finalGroupedByPrice.set(item.sale_price, item);
+              }
+            });
+            setGifticons(Array.from(finalGroupedByPrice.values()));
+          } else {
+            setGifticons([]);
+          }
+        } else {
+          // 세션이 없으면 그룹화된 데이터만 표시
+          setGifticons(Array.from(groupedByPrice.values()));
         }
       } catch (error: any) {
         console.error("기프티콘 조회 오류:", error);
@@ -581,37 +629,31 @@ const Payment = () => {
     fetchGifticons();
   }, [isLoggedIn, storeBrand]);
 
-  // 페이지 언마운트 시 선택한 기프티콘 상태 복구
+  // 페이지 언마운트 시 모든 대기중 기프티콘을 판매중으로 복구
   useEffect(() => {
     return () => {
       if (!isLoggedIn) return; // 데모 모드에서는 상태 복구 불필요
 
-      const releaseReservedGifticons = async () => {
+      const releaseAllReservedGifticons = async () => {
         const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) return;
+        if (!session?.user || !storeBrand) return;
 
-        for (const [price, selected] of selectedGifticons.entries()) {
-          if (selected.reservedIds.length > 0) {
-            // 대기중 상태를 판매중으로 복구
-            await supabase
-              .from('used_gifticons')
-              .update({ 
-                status: '판매중',
-                reserved_by: null,
-                reserved_at: null
-              })
-              .in('id', selected.reservedIds)
-              .eq('reserved_by', session.user.id)
-              .eq('status', '대기중');
-          }
-        }
+        // 해당 사용자가 예약한 해당 브랜드의 대기중 기프티콘을 판매중으로 복구
+        await supabase
+          .from('used_gifticons')
+          .update({ 
+            status: '판매중',
+            reserved_by: null,
+            reserved_at: null
+          })
+          .eq('available_at', storeBrand)
+          .eq('status', '대기중')
+          .eq('reserved_by', session.user.id);
       };
 
-      if (selectedGifticons.size > 0) {
-        releaseReservedGifticons();
-      }
+      releaseAllReservedGifticons();
     };
-  }, [selectedGifticons, isLoggedIn]);
+  }, [selectedGifticons, isLoggedIn, storeBrand]);
 
   // 기프티콘 선택 시 결제방식에서도 자동으로 기프티콘 선택
   useEffect(() => {
@@ -695,25 +737,43 @@ const Payment = () => {
       return;
     }
 
-    // 동시성 처리: 개수만큼 기프티콘을 대기중으로 변경
+    // 개수만큼 기프티콘 ID 조회 및 대기중으로 변경
     try {
+      // 이미 대기중인 기프티콘 중 reserved_by가 null인 것부터 조회
       const { data: availableItems, error: fetchError } = await supabase
         .from('used_gifticons')
         .select('id')
-        .eq('status', '판매중')
+        .eq('status', '대기중')
+        .eq('available_at', storeBrand)
         .eq('sale_price', gifticon.sale_price)
+        .is('reserved_by', null)
         .limit(newCount);
 
       if (fetchError) throw fetchError;
 
-      if (!availableItems || availableItems.length < newCount) {
+      // reserved_by가 null인 대기중 기프티콘이 부족하면 판매중인 것도 가져오기
+      let idsToReserve = availableItems.map(item => item.id);
+      if (idsToReserve.length < newCount) {
+        const { data: soldItems, error: soldError } = await supabase
+          .from('used_gifticons')
+          .select('id')
+          .eq('status', '판매중')
+          .eq('available_at', storeBrand)
+          .eq('sale_price', gifticon.sale_price)
+          .limit(newCount - idsToReserve.length);
+
+        if (soldError) throw soldError;
+        if (soldItems) {
+          idsToReserve = [...idsToReserve, ...soldItems.map(item => item.id)];
+        }
+      }
+
+      if (idsToReserve.length < newCount) {
         toast.error("선택 가능한 기프티콘이 부족합니다.");
         return;
       }
 
-      const idsToReserve = availableItems.map(item => item.id);
-
-      // 대기중으로 변경
+      // 대기중으로 변경 및 reserved_by 설정
       const { error: updateError } = await supabase
         .from('used_gifticons')
         .update({
@@ -779,11 +839,10 @@ const Payment = () => {
 
     try {
       if (newCount === 0) {
-        // 모두 해제
+        // 모두 해제 (reserved_by만 null로 설정, 상태는 대기중 유지)
         const { error } = await supabase
           .from('used_gifticons')
           .update({
-            status: '판매중',
             reserved_by: null,
             reserved_at: null
           })
@@ -795,14 +854,13 @@ const Payment = () => {
         newMap.delete(gifticon.sale_price.toString());
         setSelectedGifticons(newMap);
       } else {
-        // 하나만 해제
+        // 하나만 해제 (reserved_by만 null로 설정, 상태는 대기중 유지)
         const idsToRelease = currentSelected.reservedIds.slice(0, 1);
         const remainingIds = currentSelected.reservedIds.slice(1);
 
         const { error } = await supabase
           .from('used_gifticons')
           .update({
-            status: '판매중',
             reserved_by: null,
             reserved_at: null
           })
@@ -840,11 +898,10 @@ const Payment = () => {
     if (!session?.user) return;
 
     try {
-      // 모든 선택 해제
+      // 모든 선택 해제 (reserved_by만 null로 설정, 상태는 대기중 유지)
       const { error } = await supabase
         .from('used_gifticons')
         .update({
-          status: '판매중',
           reserved_by: null,
           reserved_at: null
         })
