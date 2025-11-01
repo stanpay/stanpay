@@ -28,6 +28,11 @@ const Main = () => {
     lat?: number;
     lon?: number;
     address?: string;
+    local_currency_available?: boolean; // 지역화폐 사용가능 여부
+    local_currency_discount_rate?: number | null; // 지역화폐 할인율
+    parking_available?: boolean; // 주차가능 여부
+    free_parking?: boolean; // 무료주차 여부
+    parking_size?: string | null; // 주차장 규모 ('넓음', '보통', '좁음')
   }
 
   const [stores, setStores] = useState<StoreData[]>([]);
@@ -765,18 +770,18 @@ const Main = () => {
           // 3. 매장 정보 조회 (kakao_place_id로, 실패 시 무시)
           let localCurrencyDiscount = 0;
           let maxGifticonDiscount = 0;
+          let storeData: any = null;
           
           try {
             // storeId가 숫자인지 확인 (카카오 플레이스 ID)
             const isNumeric = /^\d+$/.test(store.id);
-            let storeData: any = null;
             let storeError: any = null;
 
             if (isNumeric && franchiseData) {
               // kakao_place_id로 조회 시도
               const { data, error } = await supabase
                 .from('stores' as any)
-                .select('local_currency_discount_rate, gifticon_available')
+                .select('local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size, gifticon_available')
                 .eq('kakao_place_id', store.id)
                 .single();
               
@@ -788,7 +793,7 @@ const Main = () => {
             if (storeError && franchiseData) {
               const { data, error } = await supabase
                 .from('stores' as any)
-                .select('local_currency_discount_rate, gifticon_available')
+                .select('local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size, gifticon_available')
                 .eq('franchise_id', franchiseData.id)
                 .limit(1)
                 .single();
@@ -850,6 +855,11 @@ const Main = () => {
             maxDiscount: maxDiscountPercent > 0 ? `최대 ${maxDiscountPercent}% 할인` : null,
             discountNum: maxDiscountPercent,
             maxDiscountPercent: maxDiscountPercent > 0 ? maxDiscountPercent : null,
+            local_currency_available: storeData?.local_currency_available || false,
+            local_currency_discount_rate: storeData?.local_currency_discount_rate || null,
+            parking_available: storeData?.parking_available || false,
+            free_parking: storeData?.free_parking || false,
+            parking_size: storeData?.parking_size || null,
           };
         } catch (error) {
           console.error(`❌ [할인 정보] ${store.name} 조회 오류:`, error);
@@ -858,6 +868,11 @@ const Main = () => {
             maxDiscount: null,
             discountNum: 0,
             maxDiscountPercent: null,
+            local_currency_available: false,
+            local_currency_discount_rate: null,
+            parking_available: false,
+            free_parking: false,
+            parking_size: null,
           };
         }
       }));
@@ -953,18 +968,18 @@ const Main = () => {
             // 3. 매장 정보 조회 (kakao_place_id로, 실패 시 무시)
             let localCurrencyDiscount = 0;
             let maxGifticonDiscount = 0;
+            let storeData: any = null;
             
             try {
               // storeId가 숫자인지 확인 (카카오 플레이스 ID)
               const isNumeric = /^\d+$/.test(store.id);
-              let storeData: any = null;
               let storeError: any = null;
 
               if (isNumeric && franchiseData) {
                 // kakao_place_id로 조회 시도
                 const { data, error } = await supabase
                   .from('stores' as any)
-                  .select('local_currency_discount_rate, gifticon_available')
+                  .select('local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size, gifticon_available')
                   .eq('kakao_place_id', store.id)
                   .single();
                 
@@ -976,7 +991,7 @@ const Main = () => {
               if (storeError && franchiseData) {
                 const { data, error } = await supabase
                   .from('stores' as any)
-                  .select('local_currency_discount_rate, gifticon_available')
+                  .select('local_currency_available, local_currency_discount_rate, parking_available, free_parking, parking_size, gifticon_available')
                   .eq('franchise_id', franchiseData.id)
                   .limit(1)
                   .single();
@@ -1038,6 +1053,11 @@ const Main = () => {
               maxDiscount: maxDiscountPercent > 0 ? `최대 ${maxDiscountPercent}% 할인` : null,
               discountNum: maxDiscountPercent,
               maxDiscountPercent: maxDiscountPercent > 0 ? maxDiscountPercent : null,
+              local_currency_available: storeData?.local_currency_available || false,
+              local_currency_discount_rate: storeData?.local_currency_discount_rate || null,
+              parking_available: storeData?.parking_available || false,
+              free_parking: storeData?.free_parking || false,
+              parking_size: storeData?.parking_size || null,
             };
           } catch (error) {
             console.error(`❌ [할인 정보] ${store.name} 조회 오류:`, error);
@@ -1046,6 +1066,11 @@ const Main = () => {
               maxDiscount: null,
               discountNum: 0,
               maxDiscountPercent: null,
+              local_currency_available: false,
+              local_currency_discount_rate: null,
+              parking_available: false,
+              free_parking: false,
+              parking_size: null,
             };
           }
         }));

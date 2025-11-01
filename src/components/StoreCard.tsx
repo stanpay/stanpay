@@ -11,6 +11,11 @@ interface StoreCardProps {
   address?: string;
   isLoggedIn?: boolean;
   onLoginRequired?: () => void;
+  local_currency_available?: boolean; // 지역화폐 사용가능 여부
+  local_currency_discount_rate?: number | null; // 지역화폐 할인율
+  parking_available?: boolean; // 주차가능 여부
+  free_parking?: boolean; // 무료주차 여부
+  parking_size?: string | null; // 주차장 규모 ('넓음', '보통', '좁음')
 }
 
 const brandLogos: Record<string, string> = {
@@ -21,7 +26,21 @@ const brandLogos: Record<string, string> = {
   twosome: "https://www.twosome.co.kr/resources/images/content/bi_img_logo_.svg",
 };
 
-const StoreCard = ({ id, name, distance, image, maxDiscount, address, isLoggedIn = true, onLoginRequired }: StoreCardProps) => {
+const StoreCard = ({ 
+  id, 
+  name, 
+  distance, 
+  image, 
+  maxDiscount, 
+  address, 
+  isLoggedIn = true, 
+  onLoginRequired,
+  local_currency_available = false,
+  local_currency_discount_rate = null,
+  parking_available = false,
+  free_parking = false,
+  parking_size = null,
+}: StoreCardProps) => {
   const navigate = useNavigate();
   const logoSrc = brandLogos[image] || brandLogos.starbucks;
   
@@ -36,6 +55,21 @@ const StoreCard = ({ id, name, distance, image, maxDiscount, address, isLoggedIn
   const handleClick = () => {
     // 로그인 여부와 관계없이 결제 페이지로 이동 (더미 데이터 표시)
     navigate(`/payment/${id}`);
+  };
+
+  // 지역화폐 칩 표시 여부
+  const showLocalCurrencyChip = local_currency_available && local_currency_discount_rate !== null && local_currency_discount_rate > 0;
+  
+  // 주차 칩 표시 여부
+  const showParkingChip = parking_available;
+  
+  // 주차 칩 텍스트 생성
+  const getParkingText = () => {
+    if (!parking_available) return "";
+    if (free_parking) {
+      return parking_size ? `무료 주차 가능: ${parking_size}` : "무료 주차 가능";
+    }
+    return parking_size ? `주차 가능: ${parking_size}` : "주차 가능";
   };
   
   return (
@@ -56,10 +90,24 @@ const StoreCard = ({ id, name, distance, image, maxDiscount, address, isLoggedIn
           </div>
           <div className="p-3 bg-card">
             <h3 className={`font-bold mb-1 whitespace-nowrap ${getFontSizeClass()}`}>{name}</h3>
-            <div className="flex items-center text-xs text-muted-foreground">
+            <div className="flex items-center text-xs text-muted-foreground mb-2">
               <MapPin className="w-3 h-3 mr-1 flex-shrink-0" />
               <span className="break-words">{distance}</span>
             </div>
+            {(showLocalCurrencyChip || showParkingChip) && (
+              <div className="flex flex-wrap gap-1.5">
+                {showLocalCurrencyChip && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                    지역화폐 {local_currency_discount_rate}%할인
+                  </span>
+                )}
+                {showParkingChip && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border">
+                    {getParkingText()}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </Card>
