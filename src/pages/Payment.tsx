@@ -535,6 +535,10 @@ const Payment = () => {
           ? dummyGifticons.filter((gifticon) => gifticon.available_at === storeBrand)
           : dummyGifticons;
 
+        // 데모 포인트(10000원)로 구매 가능한 기프티콘만 필터링
+        const demoPoints = 10000;
+        filteredDummy = filteredDummy.filter((gifticon) => gifticon.sale_price <= demoPoints);
+
         // 할인효율 기준으로 한 번 정렬
         const sortedDummy = [...filteredDummy].sort(sortByDiscountEfficiency);
 
@@ -648,8 +652,19 @@ const Payment = () => {
           return;
         }
 
+        // 포인트 잔액보다 저렴한 기프티콘만 필터링
+        const affordableData = allData.filter(item => item.sale_price <= userPoints);
+        
+        if (affordableData.length === 0) {
+          setGifticons([]);
+          setGifticonsByPriceRange(new Map());
+          setIsLoading(false);
+          toast.info("포인트 잔액으로 구매 가능한 기프티콘이 없습니다.");
+          return;
+        }
+
         // 할인효율 기준으로 한 번 정렬 (DB 레벨에서는 계산식 정렬이 불가능하므로 클라이언트에서 정렬)
-        const sortedData = [...allData].sort(sortByDiscountEfficiency);
+        const sortedData = [...affordableData].sort(sortByDiscountEfficiency);
 
         // 천원대별로 그룹화하면서 할인효율이 높은 순으로 이미 정렬된 데이터를 사용
         const groupedByThousand = new Map<number, UsedGifticon>();
@@ -734,7 +749,7 @@ const Payment = () => {
     };
 
     fetchGifticons();
-  }, [isLoggedIn, storeBrand]);
+  }, [isLoggedIn, storeBrand, userPoints]);
 
   // 페이지 언마운트 시 모든 대기중 기프티콘을 판매중으로 복구
   useEffect(() => {
@@ -1121,7 +1136,17 @@ const Payment = () => {
         return;
       }
 
-      const sortedData = [...allData].sort(sortByDiscountEfficiency);
+      // 포인트 잔액보다 저렴한 기프티콘만 필터링
+      const affordableData = allData.filter(item => item.sale_price <= userPoints);
+      
+      if (affordableData.length === 0) {
+        setGifticons([]);
+        setIsLoading(false);
+        toast.info("포인트 잔액으로 구매 가능한 기프티콘이 없습니다.");
+        return;
+      }
+
+      const sortedData = [...affordableData].sort(sortByDiscountEfficiency);
       const groupedByThousand = new Map<number, UsedGifticon>();
       sortedData.forEach((item) => {
         const priceRange = getPriceRange(item.original_price);
@@ -1252,8 +1277,10 @@ const Payment = () => {
 
       console.log(`[기프티콘 추가 로드] 조회된 기프티콘 수: ${similarData.length}`);
 
-      // 이미 불러온 기프티콘 제외 (ID 기준)
-      const newData = similarData.filter(item => !existingGifticonIds.has(item.id));
+      // 이미 불러온 기프티콘 제외 (ID 기준) 및 포인트 잔액 체크
+      const newData = similarData.filter(item => 
+        !existingGifticonIds.has(item.id) && item.sale_price <= userPoints
+      );
 
       console.log(`[기프티콘 추가 로드] 새로운 기프티콘 수: ${newData.length}`);
 
