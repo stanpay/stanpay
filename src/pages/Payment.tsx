@@ -601,39 +601,46 @@ const Payment = () => {
 
         // 이미 대기중인 기프티콘이 있고 천원대별로 하나씩 이상 있으면 그것만 표시
         if (existingPending && existingPending.length > 0) {
-          // 할인효율 기준으로 한 번 정렬 (DB 레벨에서는 계산식 정렬이 불가능하므로 클라이언트에서 정렬)
-          const sortedPending = [...existingPending].sort(sortByDiscountEfficiency);
+          // 포인트 잔액으로 구매 가능한 기프티콘만 필터링
+          const affordablePending = existingPending.filter(item => item.sale_price <= userPoints);
+          
+          if (affordablePending.length === 0) {
+            // 대기중인 기프티콘 중 구매 가능한 것이 없으면 아래에서 판매중에서 새로 가져옴
+          } else {
+            // 할인효율 기준으로 한 번 정렬 (DB 레벨에서는 계산식 정렬이 불가능하므로 클라이언트에서 정렬)
+            const sortedPending = [...affordablePending].sort(sortByDiscountEfficiency);
 
-          // 천원대별로 그룹화하면서 할인효율이 높은 순으로 이미 정렬된 데이터를 사용
-          const existingGroupedByThousand = new Map<number, UsedGifticon>();
-          sortedPending.forEach((item) => {
-            const priceRange = getPriceRange(item.original_price);
-            // 같은 천원대에 아직 항목이 없으면 추가 (이미 할인효율 순으로 정렬되어 있으므로 첫 번째가 최고 효율)
-            if (!existingGroupedByThousand.has(priceRange)) {
-              existingGroupedByThousand.set(priceRange, item);
-            }
-          });
+            // 천원대별로 그룹화하면서 할인효율이 높은 순으로 이미 정렬된 데이터를 사용
+            const existingGroupedByThousand = new Map<number, UsedGifticon>();
+            sortedPending.forEach((item) => {
+              const priceRange = getPriceRange(item.original_price);
+              // 같은 천원대에 아직 항목이 없으면 추가 (이미 할인효율 순으로 정렬되어 있으므로 첫 번째가 최고 효율)
+              if (!existingGroupedByThousand.has(priceRange)) {
+                existingGroupedByThousand.set(priceRange, item);
+              }
+            });
 
-          // 그룹화된 항목들을 배열로 변환 (이미 할인효율 순으로 정렬됨)
-          const selectedGifticons: UsedGifticon[] = Array.from(existingGroupedByThousand.values());
+            // 그룹화된 항목들을 배열로 변환 (이미 할인효율 순으로 정렬됨)
+            const selectedGifticons: UsedGifticon[] = Array.from(existingGroupedByThousand.values());
 
-          // 불러온 순서 추적 및 초기 기프티콘 ID 저장
-          const initialIds = new Set<string>();
-          const loadOrder = new Map<string, number>();
-          selectedGifticons.forEach((gifticon) => {
-            initialIds.add(gifticon.id);
-            loadOrder.set(gifticon.id, loadOrderCounter.current++);
-          });
+            // 불러온 순서 추적 및 초기 기프티콘 ID 저장
+            const initialIds = new Set<string>();
+            const loadOrder = new Map<string, number>();
+            selectedGifticons.forEach((gifticon) => {
+              initialIds.add(gifticon.id);
+              loadOrder.set(gifticon.id, loadOrderCounter.current++);
+            });
 
-          // 정렬: 작은 금액순(판매가 오름차순)
-          selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
+            // 정렬: 작은 금액순(판매가 오름차순)
+            selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
 
-          setGifticons(selectedGifticons);
-          setInitialGifticonIds(initialIds);
-          setGifticonLoadOrder(loadOrder);
-          updateGifticonsByPriceRange(selectedGifticons);
-          setIsLoading(false);
-          return;
+            setGifticons(selectedGifticons);
+            setInitialGifticonIds(initialIds);
+            setGifticonLoadOrder(loadOrder);
+            updateGifticonsByPriceRange(selectedGifticons);
+            setIsLoading(false);
+            return;
+          }
         }
 
         // 대기중인 기프티콘이 없거나 없는 천원대가 있으면 판매중에서 가져오기
@@ -1095,30 +1102,35 @@ const Payment = () => {
 
       // 이미 대기중인 기프티콘이 있고 천원대별로 하나씩 이상 있으면 그것만 표시
       if (existingPending && existingPending.length > 0) {
-        const sortedPending = [...existingPending].sort(sortByDiscountEfficiency);
-        const existingGroupedByThousand = new Map<number, UsedGifticon>();
-        sortedPending.forEach((item) => {
-          const priceRange = getPriceRange(item.original_price);
-          if (!existingGroupedByThousand.has(priceRange)) {
-            existingGroupedByThousand.set(priceRange, item);
-          }
-        });
+        // 포인트 잔액으로 구매 가능한 기프티콘만 필터링
+        const affordablePending = existingPending.filter(item => item.sale_price <= userPoints);
+        
+        if (affordablePending.length > 0) {
+          const sortedPending = [...affordablePending].sort(sortByDiscountEfficiency);
+          const existingGroupedByThousand = new Map<number, UsedGifticon>();
+          sortedPending.forEach((item) => {
+            const priceRange = getPriceRange(item.original_price);
+            if (!existingGroupedByThousand.has(priceRange)) {
+              existingGroupedByThousand.set(priceRange, item);
+            }
+          });
 
-        const selectedGifticons: UsedGifticon[] = Array.from(existingGroupedByThousand.values());
-        const initialIds = new Set<string>();
-        const loadOrder = new Map<string, number>();
-        selectedGifticons.forEach((gifticon) => {
-          initialIds.add(gifticon.id);
-          loadOrder.set(gifticon.id, loadOrderCounter.current++);
-        });
+          const selectedGifticons: UsedGifticon[] = Array.from(existingGroupedByThousand.values());
+          const initialIds = new Set<string>();
+          const loadOrder = new Map<string, number>();
+          selectedGifticons.forEach((gifticon) => {
+            initialIds.add(gifticon.id);
+            loadOrder.set(gifticon.id, loadOrderCounter.current++);
+          });
 
-        selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
+          selectedGifticons.sort((a, b) => a.sale_price - b.sale_price);
 
-        setGifticons(selectedGifticons);
-        setInitialGifticonIds(initialIds);
-        setGifticonLoadOrder(loadOrder);
-        setIsLoading(false);
-        return;
+          setGifticons(selectedGifticons);
+          setInitialGifticonIds(initialIds);
+          setGifticonLoadOrder(loadOrder);
+          setIsLoading(false);
+          return;
+        }
       }
 
       // 대기중인 기프티콘이 없거나 없는 천원대가 있으면 판매중에서 가져오기
