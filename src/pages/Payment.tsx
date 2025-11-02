@@ -589,6 +589,15 @@ const Payment = () => {
           return;
         }
 
+        // 포인트 잔액 조회
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('points')
+          .eq('id', session.user.id)
+          .single();
+        
+        const currentPoints = profile?.points || 0;
+
         // 먼저 이미 내가 예약한 대기중 기프티콘 조회
         const { data: existingPending, error: existingError } = await supabase
           .from('used_gifticons')
@@ -602,7 +611,7 @@ const Payment = () => {
         // 이미 대기중인 기프티콘이 있고 천원대별로 하나씩 이상 있으면 그것만 표시
         if (existingPending && existingPending.length > 0) {
           // 포인트 잔액으로 구매 가능한 기프티콘만 필터링
-          const affordablePending = existingPending.filter(item => item.sale_price <= userPoints);
+          const affordablePending = existingPending.filter(item => item.sale_price <= currentPoints);
           
           if (affordablePending.length === 0) {
             // 대기중인 기프티콘 중 구매 가능한 것이 없으면 아래에서 판매중에서 새로 가져옴
@@ -660,7 +669,7 @@ const Payment = () => {
         }
 
         // 포인트 잔액보다 저렴한 기프티콘만 필터링
-        const affordableData = allData.filter(item => item.sale_price <= userPoints);
+        const affordableData = allData.filter(item => item.sale_price <= currentPoints);
         
         if (affordableData.length === 0) {
           setGifticons([]);
@@ -1090,6 +1099,15 @@ const Payment = () => {
     // 추천 기프티콘 다시 불러오기
     setIsLoading(true);
     try {
+      // 포인트 잔액 조회
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('points')
+        .eq('id', session.user.id)
+        .single();
+      
+      const currentPoints = profile?.points || 0;
+
       // 먼저 이미 내가 예약한 대기중 기프티콘 조회
       const { data: existingPending, error: existingError } = await supabase
         .from('used_gifticons')
@@ -1103,7 +1121,7 @@ const Payment = () => {
       // 이미 대기중인 기프티콘이 있고 천원대별로 하나씩 이상 있으면 그것만 표시
       if (existingPending && existingPending.length > 0) {
         // 포인트 잔액으로 구매 가능한 기프티콘만 필터링
-        const affordablePending = existingPending.filter(item => item.sale_price <= userPoints);
+        const affordablePending = existingPending.filter(item => item.sale_price <= currentPoints);
         
         if (affordablePending.length > 0) {
           const sortedPending = [...affordablePending].sort(sortByDiscountEfficiency);
@@ -1149,7 +1167,7 @@ const Payment = () => {
       }
 
       // 포인트 잔액보다 저렴한 기프티콘만 필터링
-      const affordableData = allData.filter(item => item.sale_price <= userPoints);
+      const affordableData = allData.filter(item => item.sale_price <= currentPoints);
       
       if (affordableData.length === 0) {
         setGifticons([]);
